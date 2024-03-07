@@ -19,24 +19,24 @@ Repository is realised as a part of [HSE DLA course](https://github.com/markovka
 
 ## Examples
 
-> [! IMPORTANT]
+> [!IMPORTANT]
 > Main branch leaves most of the code parts empty, showing just the base structure. The final users can add code required for their own tasks.
 
 You can find examples of this template completed for different tasks in other branches:
 
-* [Image classification](todo): simple classification problem on [MNIST](todo) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf) datasets.
+- [Image classification](todo): simple classification problem on [MNIST](todo) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf) datasets.
 
-* [ASR](todo): template for the automatic speech recognition (ASR) task. Some of the parts (for example, ``collate_fn``) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
+- [ASR](todo): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
 
 ## Useful Links:
 
 You may find the following liks useful:
 
-* [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [pre-commits](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better python code development.
+- [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [pre-commits](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better python code development.
 
-* [Awesome README](https://github.com/matiassingers/awesome-readme): a list of awesome README files for inspiration. Check the basics [here](https://github.com/PurpleBooth/a-good-readme-template).
+- [Awesome README](https://github.com/matiassingers/awesome-readme): a list of awesome README files for inspiration. Check the basics [here](https://github.com/PurpleBooth/a-good-readme-template).
 
-* [Markdown formatter](https://github.com/sumnow/markdown-formatter): format your README and other ``.md`` files.
+- [Markdown formatter](https://github.com/sumnow/markdown-formatter): format your README and other `.md` files.
 
 ## Credits
 
