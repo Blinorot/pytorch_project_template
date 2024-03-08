@@ -2,24 +2,20 @@ import logging
 import random
 from typing import List
 
-import numpy as np
 import torch
-from torch import Tensor
 from torch.utils.data import Dataset
 
 logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
-    def __init__(
-        self,
-        index,
-        limit=None,
-    ):
+    def __init__(self, index, limit=None, transforms=None):
         self._assert_index_is_valid(index)
 
         index = self._shuffle_and_limit_index(index, limit)
         self._index: List[dict] = index
+
+        self.transforms = transforms
 
     def __getitem__(self, ind):
         data_dict = self._index[ind]
@@ -27,18 +23,18 @@ class BaseDataset(Dataset):
         data_object = self.load_object(data_path)
         data_label = data_dict["label"]
         data_object = self.process_object(data_object)
-        return {"object": data_object, "label": data_label}
+        return {"data_object": data_object, "labels": data_label}
 
     def __len__(self):
         return len(self._index)
 
     def load_object(self, path):
-        # TODO load object from path
         data_object = torch.load(path)
         return data_object
 
     def process_object(self, data_object):
-        # TODO apply augs
+        if self.transforms is not None:
+            data_object = self.transforms(data_object)
         return data_object
 
     @staticmethod

@@ -1,4 +1,3 @@
-import logging
 import random
 import warnings
 
@@ -7,9 +6,9 @@ import numpy as np
 import torch
 from hydra.utils import instantiate
 
-from src.logger.logger import setup_logging
 from src.trainer import Trainer
-from src.utils import ROOT_PATH, saving_init
+from src.utils.data_utils import get_dataloaders
+from src.utils.init_utils import setup_saving_and_logging
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -28,23 +27,15 @@ def set_random_seed(seed):
 def main(config):
     set_random_seed(config.trainer.seed)
 
-    save_dir = ROOT_PATH / config.trainer.save_dir / config.writer.run_name
-    saving_init(save_dir, config)
+    logger = setup_saving_and_logging(config)
 
-    if config.trainer.get("resume_from") is not None:
-        setup_logging(save_dir, append=True)
-    else:
-        setup_logging(save_dir, append=False)
-    logger = logging.getLogger("train")
-    logger.setLevel(logging.DEBUG)
-
-    if config.device == "auto":
+    if config.trainer.device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
     else:
-        device = config.device
+        device = config.trainer.device
 
     # setup data_loader instances
-    dataloaders = instantiate(config.dataloaders)
+    dataloaders = get_dataloaders(config)
 
     # build model architecture, then print to console
     model = instantiate(config.model).to(device)
@@ -57,11 +48,11 @@ def main(config):
     # build optimizer, learning rate scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = instantiate(config.optimizer, params=trainable_params)
-    lr_scheduler = instantiate(config.scheduler, optimizer=optimizer)
+    lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
 
-    # len_epoch = number of iterations for iteration-based training
-    # len_epoch = None or len(dataloader) for epoch-based training
-    len_epoch = config.trainer.get("len_epoch")
+    # epoch_len = number of iterations for iteration-based training
+    # epoch_len = None or len(dataloader) for epoch-based training
+    epoch_len = config.trainer.get("epoch_len")
 
     trainer = Trainer(
         model=model,
@@ -72,7 +63,8 @@ def main(config):
         config=config,
         device=device,
         dataloaders=dataloaders,
-        len_epoch=len_epoch,
+        epoch_len=epoch_len,
+        logger=logger,
     )
 
     trainer.train()

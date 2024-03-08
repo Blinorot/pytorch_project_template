@@ -15,8 +15,8 @@ class BaselineModel(nn.Module):
             nn.Linear(in_features=fc_hidden, out_features=n_class),
         )
 
-    def forward(self, x, **batch):
-        return {"logits": self.net(x.transpose(1, 2))}
+    def forward(self, data_object, **batch):
+        return {"logits": self.net(data_object)}
 
     def __str__(self):
         """

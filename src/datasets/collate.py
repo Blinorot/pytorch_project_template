@@ -1,7 +1,6 @@
-import logging
 from typing import List
 
-logger = logging.getLogger(__name__)
+import torch
 
 
 def collate_fn(dataset_items: List[dict]):
@@ -10,5 +9,11 @@ def collate_fn(dataset_items: List[dict]):
     """
 
     result_batch = {}
-    # TODO: your code here
+
+    # example of collate_fn
+    result_batch["data_object"] = torch.vstack(
+        [elem["data_object"] for elem in dataset_items]
+    )
+    result_batch["labels"] = torch.tensor([elem["labels"] for elem in dataset_items])
+
     return result_batch

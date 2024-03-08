@@ -1,0 +1,10 @@
+- _target_: src.metrics.ExampleMetric
+  metric:
+    _target_: torchmetrics.classification.MulticlassAccuracy
+    num_classes: 10
+  name: "MulticlassAccuracy"
+- _target_: src.metrics.ExampleMetric
+  metric:
+    _target_: torchmetrics.classification.MulticlassAccuracy
+    num_classes: 10
+  name: "MulticlassAccuracy2.0"

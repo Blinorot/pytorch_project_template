@@ -1,18 +1,10 @@
-import random
-from pathlib import Path
-
-import pandas as pd
-import PIL
 import torch
-import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
-from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
-from src.logger.utils import plot_images
-from src.metric.tracker import MetricTracker
+from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
-from src.utils import inf_loop
+from src.utils.data_utils import inf_loop
 
 
 class Trainer(BaseTrainer):
@@ -31,7 +23,7 @@ class Trainer(BaseTrainer):
         device,
         dataloaders,
         logger,
-        len_epoch=None,
+        epoch_len=None,
         skip_oom=True,
     ):
         super().__init__(
@@ -40,13 +32,13 @@ class Trainer(BaseTrainer):
         self.skip_oom = skip_oom
         self.config = config
         self.train_dataloader = dataloaders["train"]
-        if len_epoch is None:
+        if epoch_len is None:
             # epoch-based training
-            self.len_epoch = len(self.train_dataloader)
+            self.epoch_len = len(self.train_dataloader)
         else:
             # iteration-based training
             self.train_dataloader = inf_loop(self.train_dataloader)
-            self.len_epoch = len_epoch
+            self.epoch_len = epoch_len
         self.evaluation_dataloaders = {
             k: v for k, v in dataloaders.items() if k != "train"
         }
@@ -84,7 +76,7 @@ class Trainer(BaseTrainer):
         self.train_metrics.reset()
         self.writer.add_scalar("epoch", epoch)
         for batch_idx, batch in enumerate(
-            tqdm(self.train_dataloader, desc="train", total=self.len_epoch)
+            tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
         ):
             try:
                 batch = self.process_batch(
@@ -104,7 +96,7 @@ class Trainer(BaseTrainer):
                     raise e
             self.train_metrics.update("grad norm", self.get_grad_norm())
             if batch_idx % self.log_step == 0:
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+                self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
                 self.logger.debug(
                     "Train Epoch: {} {} Loss: {:.6f}".format(
                         epoch, self._progress(batch_idx), batch["loss"].item()
@@ -118,7 +110,7 @@ class Trainer(BaseTrainer):
                 # because we are interested in recent train metrics
                 last_train_metrics = self.train_metrics.result()
                 self.train_metrics.reset()
-            if batch_idx >= self.len_epoch:
+            if batch_idx >= self.epoch_len:
                 break
         log = last_train_metrics
 
@@ -168,7 +160,7 @@ class Trainer(BaseTrainer):
                     is_train=False,
                     metrics=self.evaluation_metrics,
                 )
-            self.writer.set_step(epoch * self.len_epoch, part)
+            self.writer.set_step(epoch * self.epoch_len, part)
             self._log_scalars(self.evaluation_metrics)
 
         return self.evaluation_metrics.result()
@@ -180,7 +172,7 @@ class Trainer(BaseTrainer):
             total = self.train_dataloader.n_samples
         else:
             current = batch_idx
-            total = self.len_epoch
+            total = self.epoch_len
         return base.format(current, total, 100.0 * current / total)
 
     @torch.no_grad()

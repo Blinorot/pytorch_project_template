@@ -1,0 +1,5 @@
+_target_: torchvision.transforms.Compose
+transforms:
+  - _target_: torchvision.transforms.Normalize
+    mean: 0.5
+    std: 0.5

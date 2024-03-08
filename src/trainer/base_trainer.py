@@ -4,7 +4,7 @@ import torch
 from numpy import inf
 
 from src.logger.wandb import WanDBWriter
-from src.utils import ROOT_PATH
+from src.utils.io_utils import ROOT_PATH
 
 
 class BaseTrainer:
@@ -56,7 +56,11 @@ class BaseTrainer:
         self.writer = WanDBWriter(config, self.logger)
 
         if config.trainer.get("resume_from") is not None:
-            self._resume_checkpoint(config.trainer.resume_from)
+            resume_path = self.checkpoint_dir / config.trainer.resume_from
+            self._resume_checkpoint(resume_path)
+
+        if config.trainer.get("from_pretrained") is not None:
+            self._from_pretrained(config.trainer.get("from_pretrained"))
 
     @abstractmethod
     def _train_epoch(self, epoch):
@@ -145,8 +149,9 @@ class BaseTrainer:
             "epoch": epoch,
             "state_dict": self.model.state_dict(),
             "optimizer": self.optimizer.state_dict(),
-            "scheduler": self.scheduler.state_dict(),
+            "lr_scheduler": self.lr_scheduler.state_dict(),
             "monitor_best": self.mnt_best,
+            "config": self.config,
         }
         filename = str(self.checkpoint_dir / "checkpoint-epoch{}.pth".format(epoch))
         if not (only_best and save_best):
@@ -170,10 +175,10 @@ class BaseTrainer:
         self.mnt_best = checkpoint["monitor_best"]
 
         # load architecture params from checkpoint.
-        if checkpoint["config"]["arch"] != self.config["arch"]:
+        if checkpoint["config"]["model"] != self.config["model"]:
             self.logger.warning(
-                "Warning: Architecture configuration given in config file is different from that "
-                "of checkpoint. This may yield an exception while state_dict is being loaded."
+                "Warning: Architecture configuration given in the config file is different from that "
+                "of the checkpoint. This may yield an exception when state_dict is loaded."
             )
         self.model.load_state_dict(checkpoint["state_dict"])
 
@@ -183,12 +188,29 @@ class BaseTrainer:
             or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
         ):
             self.logger.warning(
-                "Warning: Optimizer or lr_scheduler given in config file is different "
-                "from that of checkpoint. Optimizer parameters not being resumed."
+                "Warning: Optimizer or lr_scheduler given in the config file is different "
+                "from that of the checkpoint. Optimizer and scheduler parameters "
+                "are not resumed."
             )
         else:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
+            self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
 
         self.logger.info(
             "Checkpoint loaded. Resume training from epoch {}".format(self.start_epoch)
         )
+
+    def _from_pretrained(self, pretrained_path):
+        """
+        Init model with weights from pretrained pth file
+
+        :param pretrained_path: path to model state dict
+        """
+        pretrained_path = str(pretrained_path)
+        self.logger.info("Loading model weights from: {} ...".format(pretrained_path))
+        checkpoint = torch.load(pretrained_path, self.device)
+
+        if checkpoint.get("state_dict") is not None:
+            self.model.load_state_dict(checkpoint["state_dict"])
+        else:
+            self.model.load_state_dict(checkpoint)
