@@ -17,6 +17,8 @@ class BaseDataset(Dataset):
         limit=None,
     ):
         self._assert_index_is_valid(index)
+
+        index = self._shuffle_and_limit_index(index, limit)
         self._index: List[dict] = index
 
     def __getitem__(self, ind):
@@ -58,5 +60,10 @@ class BaseDataset(Dataset):
         return sorted(index, key=lambda x: x["KEY_FOR_SORTING"])
 
     @staticmethod
-    def _limit_index(index, limit):
-        return index[:limit]
+    def _shuffle_and_limit_index(index, limit):
+        random.seed(42)
+        random.shuffle(index)
+
+        if limit is not None:
+            index = index[:limit]
+        return index

@@ -1,0 +1,4 @@
+project_name: "pytorch_template"
+entity: null
+run_name: "tesing"
+mode: "online"

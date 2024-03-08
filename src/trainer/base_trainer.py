@@ -3,7 +3,7 @@ from abc import abstractmethod
 import torch
 from numpy import inf
 
-from src.logger import get_visualizer
+from src.logger.wandb import WanDBWriter
 from src.utils import ROOT_PATH
 
 
@@ -12,22 +12,25 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, model, criterion, metrics, optimizer, config, device):
+    def __init__(
+        self, model, criterion, metrics, optimizer, lr_scheduler, config, device, logger
+    ):
         self.device = device
         self.config = config
-        self.logger = config.get_logger("trainer", config["trainer"]["verbosity"])
+        self.logger = logger
 
         self.model = model
         self.criterion = criterion
         self.metrics = metrics
         self.optimizer = optimizer
+        self.lr_scheduler = lr_scheduler
 
         # for interrupt saving
         self._last_epoch = 0
 
-        cfg_trainer = config["trainer"]
-        self.epochs = cfg_trainer["epochs"]
-        self.save_period = cfg_trainer["save_period"]
+        cfg_trainer = config.trainer
+        self.epochs = cfg_trainer.n_epochs
+        self.save_period = cfg_trainer.save_period
         self.monitor = cfg_trainer.get("monitor", "off")
 
         # configuration to monitor model performance and save best
@@ -45,13 +48,15 @@ class BaseTrainer:
 
         self.start_epoch = 1
 
-        self.checkpoint_dir = ROOT_PATH / "saved" / config.trainer.save_dir
+        self.checkpoint_dir = (
+            ROOT_PATH / config.trainer.save_dir / config.writer.run_name
+        )
 
         # setup visualization writer instance
-        self.writer = get_visualizer(config, self.logger, cfg_trainer["visualize"])
+        self.writer = WanDBWriter(config, self.logger)
 
-        if config.trainer.get("resume") is not None:
-            self._resume_checkpoint(config.trainer.resume)
+        if config.trainer.get("resume_from") is not None:
+            self._resume_checkpoint(config.trainer.resume_from)
 
     @abstractmethod
     def _train_epoch(self, epoch):

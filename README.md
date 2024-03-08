@@ -15,7 +15,7 @@ This repository contains a template for [PyTorch](https://pytorch.org/)-based De
 
 The template utilizes different python-dev techniques to improve code readability. Configuration methods enhance reproducibility and experiments control.
 
-Repository is realised as a part of [HSE DLA course](https://github.com/markovka17/dla), however, can easily be adopted for any DL-task.
+Repository is released as a part of [HSE DLA course](https://github.com/markovka17/dla), however, can easily be adopted for any DL-task.
 
 ## Examples
 
@@ -35,8 +35,6 @@ You may find the following liks useful:
 - [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [pre-commits](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better python code development.
 
 - [Awesome README](https://github.com/matiassingers/awesome-readme): a list of awesome README files for inspiration. Check the basics [here](https://github.com/PurpleBooth/a-good-readme-template).
-
-- [Markdown formatter](https://github.com/sumnow/markdown-formatter): format your README and other `.md` files.
 
 ## Credits
 

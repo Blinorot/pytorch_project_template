@@ -3,6 +3,7 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 import wandb
+from omegaconf import OmegaConf
 
 
 class WanDBWriter:
@@ -15,11 +16,16 @@ class WanDBWriter:
 
             wandb.login()
 
-            if config["trainer"].get("wandb_project") is None:
-                raise ValueError("please specify project name for wandb")
+            self.run_id = config.writer.run_id
 
             wandb.init(
-                project=config["trainer"].get("wandb_project"), config=config.config
+                project=config.writer.get("project_name"),
+                entity=config.writer.get("entity", None),
+                config=OmegaConf.to_container(config),
+                name=config.writer.get("run_name", None),
+                resume="allow",  # resume the run if run_id existed
+                id=self.run_id,
+                mode=config.writer.get("mode", "online"),
             )
             self.wandb = wandb
 
@@ -32,12 +38,15 @@ class WanDBWriter:
 
     def set_step(self, step, mode="train"):
         self.mode = mode
+        previous_step = self.step
         self.step = step
         if step == 0:
             self.timer = datetime.now()
         else:
             duration = datetime.now() - self.timer
-            self.add_scalar("steps_per_sec", 1 / duration.total_seconds())
+            self.add_scalar(
+                "steps_per_sec", (self.step - previous_step) / duration.total_seconds()
+            )
             self.timer = datetime.now()
 
     def _scalar_name(self, scalar_name):

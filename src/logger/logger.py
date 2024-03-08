@@ -5,7 +5,7 @@ from pathlib import Path
 from src.utils import ROOT_PATH, read_json
 
 
-def setup_logging(save_dir, log_config=None, default_level=logging.INFO):
+def setup_logging(save_dir, log_config=None, default_level=logging.INFO, append=False):
     """
     Setup logging configuration
     """
@@ -24,4 +24,4 @@ def setup_logging(save_dir, log_config=None, default_level=logging.INFO):
         print(
             "Warning: logging configuration file is not found in {}.".format(log_config)
         )
-        logging.basicConfig(level=default_level)
+        logging.basicConfig(level=default_level, filemode="a" if append else "w")

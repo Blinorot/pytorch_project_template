@@ -1,3 +1,4 @@
+import logging
 import random
 import warnings
 
@@ -5,8 +6,8 @@ import hydra
 import numpy as np
 import torch
 from hydra.utils import instantiate
-from omegaconf import OmegaConf
 
+from src.logger.logger import setup_logging
 from src.trainer import Trainer
 from src.utils import ROOT_PATH, saving_init
 
@@ -27,10 +28,15 @@ def set_random_seed(seed):
 def main(config):
     set_random_seed(config.trainer.seed)
 
-    logger = config.get_logger("train")
-    save_dir = ROOT_PATH / "saved" / config.trainer.save_dir
+    save_dir = ROOT_PATH / config.trainer.save_dir / config.writer.run_name
     saving_init(save_dir, config)
-    OmegaConf.save(config, save_dir / "config.yaml")
+
+    if config.trainer.get("resume_from") is not None:
+        setup_logging(save_dir, append=True)
+    else:
+        setup_logging(save_dir, append=False)
+    logger = logging.getLogger("train")
+    logger.setLevel(logging.DEBUG)
 
     if config.device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"

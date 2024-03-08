@@ -1,6 +1,5 @@
 import random
 from pathlib import Path
-from random import shuffle
 
 import pandas as pd
 import PIL
@@ -11,8 +10,9 @@ from torchvision.transforms import ToTensor
 from tqdm import tqdm
 
 from src.logger.utils import plot_images
+from src.metric.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
-from src.utils import MetricTracker, inf_loop
+from src.utils import inf_loop
 
 
 class Trainer(BaseTrainer):
@@ -26,14 +26,17 @@ class Trainer(BaseTrainer):
         criterion,
         metrics,
         optimizer,
+        lr_scheduler,
         config,
         device,
         dataloaders,
-        lr_scheduler=None,
+        logger,
         len_epoch=None,
         skip_oom=True,
     ):
-        super().__init__(model, criterion, metrics, optimizer, config, device)
+        super().__init__(
+            model, criterion, metrics, optimizer, lr_scheduler, config, device, logger
+        )
         self.skip_oom = skip_oom
         self.config = config
         self.train_dataloader = dataloaders["train"]
@@ -47,8 +50,7 @@ class Trainer(BaseTrainer):
         self.evaluation_dataloaders = {
             k: v for k, v in dataloaders.items() if k != "train"
         }
-        self.lr_scheduler = lr_scheduler
-        self.log_step = 50
+        self.log_step = config.trainer.log_step
 
         self.train_metrics = MetricTracker(
             "loss", "grad norm", *[m.name for m in self.metrics], writer=self.writer
@@ -57,13 +59,12 @@ class Trainer(BaseTrainer):
             "loss", *[m.name for m in self.metrics], writer=self.writer
         )
 
-    @staticmethod
-    def move_batch_to_device(batch, device: torch.device):
+    def move_batch_to_device(self, batch, device: torch.device):
         """
-        Move all necessary tensors to the HPU
+        Move all necessary tensors to the device
         """
-        for tensor_for_gpu in ["spectrogram", "text_encoded"]:
-            batch[tensor_for_gpu] = batch[tensor_for_gpu].to(device)
+        for tensor_for_device in self.config.trainer.device_tensors:
+            batch[tensor_for_device] = batch[tensor_for_device].to(device)
         return batch
 
     def _clip_grad_norm(self):

@@ -4,8 +4,8 @@ from torch.nn import Sequential
 
 
 class BaselineModel(nn.Module):
-    def __init__(self, n_feats, n_class, fc_hidden=512, **batch):
-        super().__init__(n_feats, n_class, **batch)
+    def __init__(self, n_feats, n_class, fc_hidden=512):
+        super().__init__()
         self.net = Sequential(
             # people say it can aproximate any function...
             nn.Linear(in_features=n_feats, out_features=fc_hidden),
@@ -15,11 +15,8 @@ class BaselineModel(nn.Module):
             nn.Linear(in_features=fc_hidden, out_features=n_class),
         )
 
-    def forward(self, spectrogram, **batch):
-        return {"logits": self.net(spectrogram.transpose(1, 2))}
-
-    def transform_input_lengths(self, input_lengths):
-        return input_lengths  # we don't reduce time dimension here
+    def forward(self, x, **batch):
+        return {"logits": self.net(x.transpose(1, 2))}
 
     def __str__(self):
         """

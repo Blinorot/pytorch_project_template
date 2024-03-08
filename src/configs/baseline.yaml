@@ -1,2 +1,24 @@
 defaults:
+  - model: model
+  - writer: wandb
   - __self__
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 3e-4
+scheduler:
+  _target_: torch.optim.lr_scheduler.StepLR
+  gamma: 0.99
+  step_size: ${trainer.len_epoch}
+trainer:
+  log_step: 50
+  n_epochs: 100
+  epoch_len: 500
+  batch_size: 4
+  num_workers: 2
+  device_tensors: ["data_object", "data_label"] # which tensors should be on device (ex. GPU)
+  resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
+  device: auto # device name or "auto"
+  override: False # if True, will override the previous run with the same name
+  monitor: "max val" # "off" or "max/min data_partition", i.e. maximize/minimize metric on partition
+  save_period: 5 # checkpoint each save_period epochs in addition to the best epoch
+  early_stop: ${trainer.n_epochs} # epochs for early stopping
