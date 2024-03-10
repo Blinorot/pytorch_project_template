@@ -2,9 +2,11 @@
   metric:
     _target_: torchmetrics.classification.MulticlassAccuracy
     num_classes: 10
+  device: "auto"
   name: "MulticlassAccuracy"
 - _target_: src.metrics.ExampleMetric
   metric:
     _target_: torchmetrics.classification.MulticlassAccuracy
     num_classes: 10
+  device: "auto"
   name: "MulticlassAccuracy2.0"

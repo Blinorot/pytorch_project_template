@@ -13,19 +13,18 @@ def inf_loop(data_loader):
 
 
 def get_dataloaders(config):
-    augmentations = instantiate(
-        config.augmentations
-    )  # transforms or augmentations init
+    # transforms or augmentations init
+    augmentations = instantiate(config.augmentations)
+    # dataset partitions init
     datasets = instantiate(config.datasets, transforms=augmentations)
 
+    # dataloaders init
     dataloaders = {}
     for dataset_partition in config.datasets.keys():
-        partition_dataloader = DataLoader(
-            datasets[dataset_partition],
-            batch_size=config.trainer.batch_size,
-            num_workers=config.trainer.num_workers,
+        partition_dataloader = instantiate(
+            config.dataloader,
+            dataset=datasets[dataset_partition],
             collate_fn=collate_fn,
-            pin_memory=config.trainer.get("pin_memory", True),
             drop_last=(dataset_partition == "train"),
             shuffle=(dataset_partition == "train"),
         )

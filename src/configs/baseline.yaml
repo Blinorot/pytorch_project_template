@@ -3,6 +3,7 @@ defaults:
   - writer: wandb
   - metrics: example
   - datasets: example
+  - dataloader: example
   - augmentations: example
   - _self_
 optimizer:
@@ -18,8 +19,6 @@ trainer:
   log_step: 50
   n_epochs: 100
   epoch_len: 500
-  batch_size: 10
-  num_workers: 2
   device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
   resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
   device: auto # device name or "auto"
