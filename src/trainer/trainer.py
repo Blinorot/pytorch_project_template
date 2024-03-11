@@ -110,8 +110,8 @@ class Trainer(BaseTrainer):
         return log
 
     def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
-        self.move_batch_to_device(batch)
-        self.transform_batch(batch)  # transform batch on device -- faster
+        batch = self.move_batch_to_device(batch)
+        batch = self.transform_batch(batch)  # transform batch on device -- faster
         if is_train:
             self.optimizer.zero_grad()
         outputs = self.model(**batch)

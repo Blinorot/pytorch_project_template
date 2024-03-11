@@ -188,6 +188,7 @@ class BaseTrainer:
                 batch[transform_name] = self.batch_transforms[transform_name](
                     batch[transform_name]
                 )
+        return batch
 
     def _clip_grad_norm(self):
         if self.config["trainer"].get("max_grad_norm", None) is not None:
