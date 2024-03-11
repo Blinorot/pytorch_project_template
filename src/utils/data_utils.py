@@ -14,9 +14,10 @@ def inf_loop(data_loader):
 
 def get_dataloaders(config):
     # transforms or augmentations init
-    augmentations = instantiate(config.augmentations)
+    batch_transforms = instantiate(config.transforms.batch_transforms)
+
     # dataset partitions init
-    datasets = instantiate(config.datasets, transforms=augmentations)
+    datasets = instantiate(config.datasets)  # instance transorms are defined inside
 
     # dataloaders init
     dataloaders = {}
@@ -30,4 +31,4 @@ def get_dataloaders(config):
         )
         dataloaders[dataset_partition] = partition_dataloader
 
-    return dataloaders
+    return dataloaders, batch_transforms

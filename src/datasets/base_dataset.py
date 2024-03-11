@@ -9,13 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
-    def __init__(self, index, limit=None, transforms=None):
+    def __init__(self, index, limit=None, instance_transforms=None):
         self._assert_index_is_valid(index)
 
         index = self._shuffle_and_limit_index(index, limit)
         self._index: List[dict] = index
 
-        self.transforms = transforms
+        self.instance_transforms = instance_transforms
 
     def __getitem__(self, ind):
         data_dict = self._index[ind]
@@ -33,8 +33,8 @@ class BaseDataset(Dataset):
         return data_object
 
     def process_object(self, data_object):
-        if self.transforms is not None:
-            data_object = self.transforms(data_object)
+        if self.instance_transforms is not None:
+            data_object = self.instance_transforms(data_object)
         return data_object
 
     @staticmethod

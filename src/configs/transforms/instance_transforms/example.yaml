@@ -1,0 +1,3 @@
+_target_: torchvision.transforms.v2.Compose
+transforms:
+  - _target_: src.transforms.RandomScale1D

@@ -2,8 +2,11 @@ from abc import abstractmethod
 
 import torch
 from numpy import inf
+from torch.nn.utils import clip_grad_norm_
 
 from src.logger.wandb import WanDBWriter
+from src.metrics.tracker import MetricTracker
+from src.utils.data_utils import inf_loop
 from src.utils.io_utils import ROOT_PATH
 
 
@@ -13,27 +16,61 @@ class BaseTrainer:
     """
 
     def __init__(
-        self, model, criterion, metrics, optimizer, lr_scheduler, config, device, logger
+        self,
+        model,
+        criterion,
+        metrics,
+        optimizer,
+        lr_scheduler,
+        config,
+        device,
+        dataloaders,
+        logger,
+        epoch_len=None,
+        skip_oom=True,
+        batch_transforms=None,
     ):
-        self.device = device
         self.config = config
+        cfg_trainer = config.trainer
+
+        self.device = device
+        self.skip_oom = skip_oom
+
         self.logger = logger
+        self.log_step = config.trainer.get("log_step", 50)
 
         self.model = model
         self.criterion = criterion
-        self.metrics = metrics
         self.optimizer = optimizer
         self.lr_scheduler = lr_scheduler
+        self.batch_transforms = batch_transforms
 
-        # for interrupt saving
-        self._last_epoch = 0
+        # define dataloaders
+        self.train_dataloader = dataloaders["train"]
+        if epoch_len is None:
+            # epoch-based training
+            self.epoch_len = len(self.train_dataloader)
+        else:
+            # iteration-based training
+            self.train_dataloader = inf_loop(self.train_dataloader)
+            self.epoch_len = epoch_len
 
-        cfg_trainer = config.trainer
+        self.evaluation_dataloaders = {
+            k: v for k, v in dataloaders.items() if k != "train"
+        }
+
+        # define epochs
+        self._last_epoch = 0  # required for saving on interruption
+        self.start_epoch = 1
         self.epochs = cfg_trainer.n_epochs
-        self.save_period = cfg_trainer.save_period
-        self.monitor = cfg_trainer.get("monitor", "off")
 
         # configuration to monitor model performance and save best
+
+        self.save_period = cfg_trainer.save_period  # checkpoint each save_period epochs
+        self.monitor = cfg_trainer.get(
+            "monitor", "off"
+        )  # format: "mnt_mode mnt_metric"
+
         if self.monitor == "off":
             self.mnt_mode = "off"
             self.mnt_best = 0
@@ -46,14 +83,14 @@ class BaseTrainer:
             if self.early_stop <= 0:
                 self.early_stop = inf
 
-        self.start_epoch = 1
+        # setup visualization writer instance
+        self.writer = WanDBWriter(config, self.logger)
+
+        # define checkpoint dir and init everything if required
 
         self.checkpoint_dir = (
             ROOT_PATH / config.trainer.save_dir / config.writer.run_name
         )
-
-        # setup visualization writer instance
-        self.writer = WanDBWriter(config, self.logger)
 
         if config.trainer.get("resume_from") is not None:
             resume_path = self.checkpoint_dir / config.trainer.resume_from
@@ -135,6 +172,58 @@ class BaseTrainer:
 
             if epoch % self.save_period == 0 or best:
                 self._save_checkpoint(epoch, save_best=best, only_best=True)
+
+    def move_batch_to_device(self, batch):
+        """
+        Move all necessary tensors to the device
+        """
+        for tensor_for_device in self.config.trainer.device_tensors:
+            batch[tensor_for_device] = batch[tensor_for_device].to(self.device)
+        return batch
+
+    def transform_batch(self, batch):
+        # do batch transforms on device
+        if self.batch_transforms is not None:
+            for transform_name in self.batch_transforms.keys():
+                batch[transform_name] = self.batch_transforms[transform_name](
+                    batch[transform_name]
+                )
+
+    def _clip_grad_norm(self):
+        if self.config["trainer"].get("max_grad_norm", None) is not None:
+            clip_grad_norm_(
+                self.model.parameters(), self.config["trainer"]["max_grad_norm"]
+            )
+
+    @torch.no_grad()
+    def _get_grad_norm(self, norm_type=2):
+        parameters = self.model.parameters()
+        if isinstance(parameters, torch.Tensor):
+            parameters = [parameters]
+        parameters = [p for p in parameters if p.grad is not None]
+        total_norm = torch.norm(
+            torch.stack(
+                [torch.norm(p.grad.detach(), norm_type).cpu() for p in parameters]
+            ),
+            norm_type,
+        )
+        return total_norm.item()
+
+    def _progress(self, batch_idx):
+        base = "[{}/{} ({:.0f}%)]"
+        if hasattr(self.train_dataloader, "n_samples"):
+            current = batch_idx * self.train_dataloader.batch_size
+            total = self.train_dataloader.n_samples
+        else:
+            current = batch_idx
+            total = self.epoch_len
+        return base.format(current, total, 100.0 * current / total)
+
+    def _log_scalars(self, metric_tracker: MetricTracker):
+        if self.writer is None:
+            return
+        for metric_name in metric_tracker.keys():
+            self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
 
     def _save_checkpoint(self, epoch, save_best=False, only_best=False):
         """

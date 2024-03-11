@@ -1,5 +1,5 @@
-torch==1.13.1
-torchvision==0.14.1
+torch==2.2.0
+torchvision==0.17.0
 torchmetrics
 numpy
 tqdm
