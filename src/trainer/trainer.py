@@ -11,50 +11,6 @@ class Trainer(BaseTrainer):
     Trainer class
     """
 
-    def __init__(
-        self,
-        model,
-        criterion,
-        metrics,
-        optimizer,
-        lr_scheduler,
-        config,
-        device,
-        dataloaders,
-        logger,
-        epoch_len=None,
-        skip_oom=True,
-        batch_transforms=None,
-    ):
-        super().__init__(
-            model,
-            criterion,
-            metrics,
-            optimizer,
-            lr_scheduler,
-            config,
-            device,
-            dataloaders,
-            logger,
-            epoch_len,
-            skip_oom,
-            batch_transforms,
-        )
-
-        # define metrics
-        self.metrics = metrics
-        self.train_metrics = MetricTracker(
-            *self.config.writer.loss_names,
-            "grad_norm",
-            *[m.name for m in self.metrics],
-            writer=self.writer,
-        )
-        self.evaluation_metrics = MetricTracker(
-            *self.config.writer.loss_names,
-            *[m.name for m in self.metrics],
-            writer=self.writer,
-        )
-
     def _train_epoch(self, epoch):
         """
         Training logic for an epoch
@@ -62,6 +18,7 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
+        self.is_train = True
         self.model.train()
         self.train_metrics.reset()
         self.writer.add_scalar("epoch", epoch)
@@ -71,7 +28,6 @@ class Trainer(BaseTrainer):
             try:
                 batch = self.process_batch(
                     batch,
-                    is_train=True,
                     metrics=self.train_metrics,
                 )
             except RuntimeError as e:
@@ -109,16 +65,16 @@ class Trainer(BaseTrainer):
 
         return log
 
-    def process_batch(self, batch, is_train: bool, metrics: MetricTracker):
+    def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
-        if is_train:
+        if self.is_train:
             self.optimizer.zero_grad()
         outputs = self.model(**batch)
         batch.update(outputs)
 
         batch["loss"] = self.criterion(**batch)
-        if is_train:
+        if self.is_train:
             batch["loss"].backward()
             self._clip_grad_norm()
             self.optimizer.step()
@@ -137,6 +93,7 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains information about validation
         """
+        self.is_train = False
         self.model.eval()
         self.evaluation_metrics.reset()
         with torch.no_grad():
@@ -147,7 +104,6 @@ class Trainer(BaseTrainer):
             ):
                 batch = self.process_batch(
                     batch,
-                    is_train=False,
                     metrics=self.evaluation_metrics,
                 )
             self.writer.set_step(epoch * self.epoch_len, part)

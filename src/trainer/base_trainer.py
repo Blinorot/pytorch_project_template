@@ -30,6 +30,8 @@ class BaseTrainer:
         skip_oom=True,
         batch_transforms=None,
     ):
+        self.is_train = True
+
         self.config = config
         cfg_trainer = config.trainer
 
@@ -85,6 +87,20 @@ class BaseTrainer:
 
         # setup visualization writer instance
         self.writer = WanDBWriter(config, self.logger)
+
+        # define metrics
+        self.metrics = metrics
+        self.train_metrics = MetricTracker(
+            *self.config.writer.loss_names,
+            "grad_norm",
+            *[m.name for m in self.metrics],
+            writer=self.writer,
+        )
+        self.evaluation_metrics = MetricTracker(
+            *self.config.writer.loss_names,
+            *[m.name for m in self.metrics],
+            writer=self.writer,
+        )
 
         # define checkpoint dir and init everything if required
 
@@ -183,9 +199,11 @@ class BaseTrainer:
 
     def transform_batch(self, batch):
         # do batch transforms on device
-        if self.batch_transforms is not None:
-            for transform_name in self.batch_transforms.keys():
-                batch[transform_name] = self.batch_transforms[transform_name](
+        transform_type = "train" if self.is_train else "inference"
+        transforms = self.batch_transforms.get(transform_type)
+        if transforms is not None:
+            for transform_name in transforms.keys():
+                batch[transform_name] = transforms[transform_name](
                     batch[transform_name]
                 )
         return batch
