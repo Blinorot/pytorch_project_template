@@ -8,4 +8,4 @@ class ExampleLoss(nn.Module):
         self.loss = nn.CrossEntropyLoss()
 
     def forward(self, logits: torch.Tensor, labels: torch.Tensor, **batch):
-        return self.loss(logits, labels)
+        return {"loss": self.loss(logits, labels)}

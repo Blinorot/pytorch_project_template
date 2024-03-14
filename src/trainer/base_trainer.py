@@ -151,43 +151,51 @@ class BaseTrainer:
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
-            best = False
-            if self.mnt_mode != "off":
-                try:
-                    # check whether model performance improved or not,
-                    # according to specified metric(mnt_metric)
-                    if self.mnt_mode == "min":
-                        improved = log[self.mnt_metric] <= self.mnt_best
-                    elif self.mnt_mode == "max":
-                        improved = log[self.mnt_metric] >= self.mnt_best
-                    else:
-                        improved = False
-                except KeyError:
-                    self.logger.warning(
-                        "Warning: Metric '{}' is not found. "
-                        "Model performance monitoring is disabled.".format(
-                            self.mnt_metric
-                        )
-                    )
-                    self.mnt_mode = "off"
-                    improved = False
-
-                if improved:
-                    self.mnt_best = log[self.mnt_metric]
-                    not_improved_count = 0
-                    best = True
-                else:
-                    not_improved_count += 1
-
-                if not_improved_count > self.early_stop:
-                    self.logger.info(
-                        "Validation performance didn't improve for {} epochs. "
-                        "Training stops.".format(self.early_stop)
-                    )
-                    break
+            best, stop_process, not_improved_count = self._monitor_performance(
+                log, not_improved_count
+            )
 
             if epoch % self.save_period == 0 or best:
                 self._save_checkpoint(epoch, save_best=best, only_best=True)
+
+            if stop_process:  # early_stop
+                break
+
+    def _monitor_performance(self, log, not_improved_count):
+        best = False
+        stop_process = False
+        if self.mnt_mode != "off":
+            try:
+                # check whether model performance improved or not,
+                # according to specified metric(mnt_metric)
+                if self.mnt_mode == "min":
+                    improved = log[self.mnt_metric] <= self.mnt_best
+                elif self.mnt_mode == "max":
+                    improved = log[self.mnt_metric] >= self.mnt_best
+                else:
+                    improved = False
+            except KeyError:
+                self.logger.warning(
+                    "Warning: Metric '{}' is not found. "
+                    "Model performance monitoring is disabled.".format(self.mnt_metric)
+                )
+                self.mnt_mode = "off"
+                improved = False
+
+            if improved:
+                self.mnt_best = log[self.mnt_metric]
+                not_improved_count = 0
+                best = True
+            else:
+                not_improved_count += 1
+
+            if not_improved_count > self.early_stop:
+                self.logger.info(
+                    "Validation performance didn't improve for {} epochs. "
+                    "Training stops.".format(self.early_stop)
+                )
+                stop_process = True
+        return best, stop_process, not_improved_count
 
     def move_batch_to_device(self, batch):
         """
@@ -221,9 +229,7 @@ class BaseTrainer:
             parameters = [parameters]
         parameters = [p for p in parameters if p.grad is not None]
         total_norm = torch.norm(
-            torch.stack(
-                [torch.norm(p.grad.detach(), norm_type).cpu() for p in parameters]
-            ),
+            torch.stack([torch.norm(p.grad.detach(), norm_type) for p in parameters]),
             norm_type,
         )
         return total_norm.item()

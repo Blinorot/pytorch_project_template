@@ -30,15 +30,17 @@ class Trainer(BaseTrainer):
                     batch,
                     metrics=self.train_metrics,
                 )
-            except RuntimeError as e:
-                if "out of memory" in str(e) and self.skip_oom:
+            except torch.cuda.OutOfMemoryError as e:
+                if self.skip_oom:
                     self.logger.warning("OOM on batch. Skipping batch.")
-                    self.optimizer.zero_grad()  # free some memory
-                    torch.cuda.empty_cache()
+                    torch.cuda.empty_cache()  # free some memory
                     continue
                 else:
                     raise e
+
             self.train_metrics.update("grad_norm", self._get_grad_norm())
+
+            # log current results
             if batch_idx % self.log_step == 0:
                 self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
                 self.logger.debug(
@@ -56,6 +58,7 @@ class Trainer(BaseTrainer):
                 self.train_metrics.reset()
             if batch_idx + 1 >= self.epoch_len:
                 break
+
         log = last_train_metrics
 
         # Run val/test
@@ -73,15 +76,20 @@ class Trainer(BaseTrainer):
         outputs = self.model(**batch)
         batch.update(outputs)
 
-        batch["loss"] = self.criterion(**batch)
+        all_losses = self.criterion(**batch)
+        batch.update(all_losses)
+
         if self.is_train:
-            batch["loss"].backward()
+            batch["loss"].backward()  # sum of all losses is always called loss
             self._clip_grad_norm()
             self.optimizer.step()
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 
-        metrics.update("loss", batch["loss"].item())
+        # update metrics for each loss (in case of multiple losses)
+        for loss_name in self.config.writer.loss_names:
+            metrics.update(loss_name, batch[loss_name].item())
+
         for met in self.metrics:
             metrics.update(met.name, met(**batch))
         return batch
