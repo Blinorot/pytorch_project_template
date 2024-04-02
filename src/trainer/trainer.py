@@ -71,8 +71,12 @@ class Trainer(BaseTrainer):
     def process_batch(self, batch, metrics: MetricTracker):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
+
+        metric_funcs = self.metrics["inference"]
         if self.is_train:
+            metric_funcs = self.metrics["train"]
             self.optimizer.zero_grad()
+
         outputs = self.model(**batch)
         batch.update(outputs)
 
@@ -90,7 +94,7 @@ class Trainer(BaseTrainer):
         for loss_name in self.config.writer.loss_names:
             metrics.update(loss_name, batch[loss_name].item())
 
-        for met in self.metrics:
+        for met in metric_funcs:
             metrics.update(met.name, met(**batch))
         return batch
 

@@ -20,8 +20,16 @@ class BaselineModel(nn.Module):
 
     def __str__(self):
         """
-        Model prints with number of trainable parameters
+        Model prints with number of parameters
         """
-        model_parameters = filter(lambda p: p.requires_grad, self.parameters())
-        params = sum([np.prod(p.size()) for p in model_parameters])
-        return super().__str__() + "\nTrainable parameters: {}".format(params)
+        all_parameters = sum([np.prod(p.size()) for p in self.parameters()])
+        trainable_parameters = filter(lambda p: p.requires_grad, self.parameters())
+        trainable_parameters = sum([np.prod(p.size()) for p in trainable_parameters])
+
+        result_info = super().__str__()
+        result_info = result_info + "\nAll parameters: {}".format(all_parameters)
+        result_info = result_info + "\nTrainable parameters: {}".format(
+            trainable_parameters
+        )
+
+        return result_info
