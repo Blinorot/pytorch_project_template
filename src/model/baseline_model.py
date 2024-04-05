@@ -1,4 +1,3 @@
-import numpy as np
 from torch import nn
 from torch.nn import Sequential
 
@@ -22,14 +21,13 @@ class BaselineModel(nn.Module):
         """
         Model prints with number of parameters
         """
-        all_parameters = sum([np.prod(p.size()) for p in self.parameters()])
-        trainable_parameters = filter(lambda p: p.requires_grad, self.parameters())
-        trainable_parameters = sum([np.prod(p.size()) for p in trainable_parameters])
+        all_parameters = sum([p.numel() for p in self.parameters()])
+        trainable_parameters = sum(
+            [p.numel() for p in self.parameters() if p.requires_grad]
+        )
 
         result_info = super().__str__()
-        result_info = result_info + "\nAll parameters: {}".format(all_parameters)
-        result_info = result_info + "\nTrainable parameters: {}".format(
-            trainable_parameters
-        )
+        result_info = result_info + f"\nAll parameters: {all_parameters}"
+        result_info = result_info + f"\nTrainable parameters: {trainable_parameters}"
 
         return result_info

@@ -21,7 +21,5 @@ def setup_logging(save_dir, log_config=None, default_level=logging.INFO, append=
 
         logging.config.dictConfig(config)
     else:
-        print(
-            "Warning: logging configuration file is not found in {}.".format(log_config)
-        )
+        print(f"Warning: logging configuration file is not found in {log_config}.")
         logging.basicConfig(level=default_level, filemode="a" if append else "w")
