@@ -1,5 +1,0 @@
-project_name: "pytorch_template"
-entity: null
-run_name: "testing"
-mode: "online"
-loss_names: ["loss"] # which losses to log (useful for multi-loss tasks, s.a. GANs)

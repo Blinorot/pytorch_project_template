@@ -1,0 +1,210 @@
+\documentclass[10pt,conference,compsocconf]{IEEEtran}
+
+\usepackage[dvipsnames]{xcolor}
+
+
+\PassOptionsToPackage{hyphens}{url}\usepackage[
+colorlinks = true,
+linkcolor = BlueViolet,
+urlcolor  = BlueViolet,
+citecolor = BlueViolet,
+anchorcolor = BlueViolet
+]{hyperref}
+\usepackage{graphicx}	% For figure environment
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+
+\begin{document}
+\title{Writing Scientific Papers and Reports}
+
+\author{
+  Petr Grinberg\\
+  \textit{Faculty Of Computer Science, HSE, Moscow}\\
+  \texttt{pgrinberg@hse.ru}\\ \ \\
+  \textit{Last Edit Date: \today}
+}
+
+\maketitle
+
+\begin{abstract}
+  A critical part of scientific discovery is the
+  communication of research findings to peers or the general public.
+  Mastery of the process of scientific communication improves the
+  visibility and impact of research. While this guide is a necessary
+  tool for learning how to write in a manner suitable for publication
+  at a scientific venue, it is by no means sufficient, on its own, to
+  make its reader an accomplished writer. 
+  This guide should be a starting point for further development of 
+  writing skills.
+\end{abstract}
+
+\section*{About this Guide}
+This paper aims to provide some guidelines on how to write a scientific paper with extra comments concerning Deep Learning (DL) oriented projects. Sources of this paper include materials from different authors (see Section \ref{sec:acknowledgements}). We advise the reader to also have a look at these sources. The following Sections are organized in the standard order, which you can see in most of the scientific publications. Each Section has corresponding advice, information and examples.
+
+Before you start writing  a paper, think about your reader and his/her purpose in reading:
+\begin{itemize}
+	\item Who: The reader of your project/lab report might be
+	\begin{itemize}
+		\item knowledgeable or expert in your field, and/or,
+		\item interested but with no deep technical knowledge, and/or,
+		\item important for future contacts / developments, and/or,
+		\item a supervisor that needs to assess your work to give you a grade.
+	\end{itemize}
+	\item Purpose: The reader is
+	\begin{itemize}
+		\item interested in the results and discussion of your work and also in the credibility of your methods, and/or,
+		\item looking for inspiration for her/his own work, and/or,
+		\item interested in recruiting you.
+	\end{itemize}
+\end{itemize}
+
+Remember that an effective project/lab report begins with pre-project/lab planning. Usually, your supervisor will clarify the purpose of the project/lab and the procedures, but if not, then you need to think this through. 
+\begin{itemize}
+	\item What do you want to learn?
+	\item What are the variables?
+	\item What are the procedures?
+	\item What materials and facilities will be used?
+\end{itemize}
+
+Remember that an effective project/lab report requires careful in-project/lab procedure and recording data accurately and completely.
+
+Always read the template of the conference/journal you are submitting your paper to. Each template may contain its own rules for formatting your paper. For example, some conferences require you to put caption below the Table and some -- above.
+
+\section*{Title}
+The title should be short (about 10 words), interesting, and it should describe the assigned task/project and/or what you found.
+
+\section*{Abstract}
+In some but not all cases. Again, learn what your reader expects. The abstract is a very short summary (usually around 150-250 words) of what the question is, what you found, and why it may be important. The importance of abstracts is increasing as more scientists/engineers/industries are using search engines to keep up with the literature. Since search engines can only search for words in a paper title and abstract, these may be the only parts that many people read. Consequently, a well written abstract is extraordinarily important.
+
+\section{Introduction}
+
+Introduce what your question is, explain why someone should find this interesting (what is a general problem that task tries to solve and why this problem has to be solved). Summarize what is currently known about the question, i.e. what is current state-of-the-art. Introduce a little of what you found and how you found it. You should explain any ideas or techniques that are necessary for someone to understand your results section but do not go into deep details.
+\begin{itemize}
+	\item Context/Purpose/Objective(s) Why are we doing the project/lab? What questions are you trying to answer?
+	\item Hypothesis. Which are the assumptions? What do you expect the results to be? This should relate directly to the problem.
+\end{itemize}
+
+Sometimes, you may want to highlight your novel contributions again in the end of the paper. Use \texttt{itemize} and clearly indicate your main advances. See \cite{pegg2023rtfs, huang2022you} for the examples.
+
+In the end of the introduction, indicate the order of the following sections to help the reader orientate. Usually, it looks like this: \textit{The rest of the paper is organized as follows. Section \ref{sec:related_work} presents the existing solutions. In Section \ref{sec:methodology}, we propose our method. .... Finally, we sum up our findings in Section \ref{sec:conclusion}.}
+
+\section{Related Work}\label{sec:related_work}
+In this section, introduce current state-of-the-art and additional information required to understand your approach. For the DL-oriented projects, this section may include: (i) baseline architectures; (ii) definition/explanation of key DL-techniques, which your own method is based on. Do not go into too deep details, as your paper is limited in size and the reader can always look at the corresponding references (do not forget to write citations). If the DL-technique is well-known (e.g. ResBlock~\cite{he2016deep}), you do not need to explain it, except for the case your paper improves this well-known technique (e.g. you propose a new ResBlock version, Res2Block~\cite{gao2019res2net}). Do not include the metrics and numbers here, you have Section \ref{sec:results} for this purpose. Saying "ModelName achieves state-of-the-art performance" is usually enough.
+
+Always remember, that if your paper is not a survey, your aim is to explain your own novel approach and not to rephrase the existing material. 
+
+\section{Methodology}\label{sec:methodology}
+Sometimes this Section can be joined with the following one. Explain your novel approach here in details. A good idea would be to show a graphical Figure summarizing your method. Explain how your method differs from the existing ones (from those in Section \ref{sec:related_work}). Try to provide theoretical justification for the superiority of your approach (you may want to do it here or in Section \ref{sec:results}). If your method is good, but you do not understand why, ask yourself: maybe this good performance is accidental and your method is not that cool. Your paper will most likely be rejected in the absence of such justification.
+
+\section{Experimental Setup}\label{sec:experimental_setup}
+This Section and the previous one are like a cooking recipe. These two sections should be written in the past tense, since your experiments are completed at the time you are writing your report. Include enough detail so that someone can repeat the experiment. Provide the information about the datasets, hyperparameters, loss-functions, optimizers, number of epochs, batch size, schedulers, etc.. Information should be clearly written, detailed, and brief. Be careful not to mix results into this section!
+
+If you want to do some specific measurements/experiments/analyses, explain how you do them here. For example, look at Sections IV.B and IV.C from \cite{grinberg2023rawspectrogram}.
+
+Model reproducibility obligations require you to make your paper as reproducible as possible. In code, try to make all the instructions clear, add Docker, and indicate all packages. In paper, write your hardware, i.e. which GPU and CPU were used. 
+
+\section{Results}\label{sec:results}
+To write the results section, use the figures and tables as a guide. Start by outlining, in point form, what you found, going slowly through each part of the figures. Then take the points and group them into paragraphs, and finally order the points within each paragraph. Present the data as fully as possible, including stuff that at the moment does not quite make sense. Verbs in the results section are usually in the past tense. Only established scientific knowledge is written about in the present tense, “the world is round”, for example. You cannot presume
+that your own data are part of the body of established scientific knowledge, and so when you describe your own results, use the past tense, “a band of 1.3 KB was seen”, for example. There are, however, exceptions to this general rule. It is acceptable to say, “Table 3 shows the sizes of the DNA fragments in our preparation”. It is also acceptable to say, “In a 1991 paper, Ebright and coworkers used PCR to mutagenize DNA”.
+
+\begin{itemize}
+	\item Write a sentence that summarizes all your findings
+	\item Develop your results section with concise text followed by graphics that show your data.
+	\item Be sure to use units (if they exist) and be careful to make units readable!
+	\item Tabulated data Must be in the form of a table.
+	\item Try to visualize data as much as possible. For example, if you want to show a growing trend, it is better to plot an increasing line, rather than provide an array with numbers. Use this, if you need to show the trend/relation, in which the precise values are not that important.
+	\item Include legends in every figure/table. Legends to the figures and tables explain the elements that appear in the illustration. Conclusions about the data are not included in the legends. Your figure legends should be written in the present tense since you are explaining elements that still exist at the time that you are writing the report. Follow the template requirements for figures/tables.
+\end{itemize}
+
+For the DL-oriented projects, start by introducing the metrics (this may be done in Section \ref{sec:experimental_setup} as well). Compare your model with the baselines. Do not forget about ablation studies; they will help you with the justification, which we talked about in Section \ref{sec:methodology}.
+
+To follow modern trends of DL papers, you may want to include some efficiency metrics: number of parameters, floating-point operations (FLOPs), size of one batch, time needed for one epoch/step, inference time, real-time factor (in audio, ratio between GPU processing time and audio time), etc. 
+
+\section{Discussion}
+Sometimes you may not see "Discussion" section directly. Its content may be implicitly written in the "Results" section. It is up to you to choose whether you separate this Section from the Section \ref{sec:results} or not. You may also want this Section to be a part of the Section \ref{sec:conclusion} instead.
+
+In this Section, you provide analysis of the figures and tables from Section \ref{sec:results}. Show your understanding/interpretation of the data. For the DL-projects, try to answer the questions: "Does your model perform better?", "How much better?", "What are the advantages and disadvantages of the model?".
+
+
+\section{Conclusion}\label{sec:conclusion}
+Sum up your findings. A good conclusion answers these questions:
+\begin{itemize}
+
+\item What did you do in the project/lab? Restate the purpose/problem, a brief description of how you tested it, what you used to gather data.
+\item What does your data say? Look at your data table or sketch and turn it into a sentence or two. Be sure to include both the control and experimental groups. Basically, you rephrase and sum up the Results/Discussion Section. In the DL-projects, this may be something like: \textit{Our experiments showed that our method outperforms existing solutions by a large margin}. If you proposed several methods, give a short sentence about all of them: \textit{MethodA achieved lower quality than SOTAModelFromTheLiterature, however, MethodB surpasses all other solutions by a large margin.}
+\item What did you learn? This should answer the question posed in the purpose/problem.
+\item (Optional.) What can be improved? Indicate the limitations of the work and your ideas on how to solve them or why do they exist.
+\end{itemize}
+
+Do not forget that conclusion should be short. Do not copy-paste text from Introduction and Results sections; you should summarize them instead.
+
+We summarized the whole guide in Appendix \ref{sec:evaluation}. We suggest you to have a look. To further improve your writing skills, we advise you to read as much literature as possible. While reading, pay attention to the paper structure, how authors explain everything, etc. This experience will allow you to become a better writer yourself.
+
+\section{Acknowledgements}\label{sec:acknowledgements}
+We thank Cheng Soon Ong~\cite{ethz} from ETH Zurich, Andrea Ridolfi from Bern University of Applied Sciences, and authors of \cite{mitGuidelinesWriting} from MIT OpenCourseWare for making their "How to write a paper" materials available for students.
+
+\text{P.S.} If someone helped you with the project or you had some funding, write it in this Section.
+
+\section*{References}
+Include only those references that pertain to the question at hand. You should list the references alphabetically by the first author’s last name or according to their order of appearance in your report (check conference/journal requirements). Include all the authors, the paper’s title, the name of the journal in which it was published, its year of publication, the volume number, and page numbers (use as complete metadata as possible, use BibTex or BibLaTeX).
+
+\bibliographystyle{IEEEtran}
+\bibliography{literature}
+
+\appendix
+\subsection{Evaluation of the Report Quality}\label{sec:evaluation}
+Table \ref{tab:sec_evaluation} provides you with the general basic idea of how to understand if your report/paper is good or not. Table \ref{tab:writing_evaluation} provides you with the writing style guide. You should aim to follow the "good" evaluation criteria.
+
+\begin{table*}
+	\centering
+	\caption{Evaluation criteria for each Section.}\label{tab:sec_evaluation}
+	\begin{tabular}{c|l|l|l|l}
+		\toprule
+		\multirow{2}{*}{Section} & \multirow{2}{*}{Goal} & \multicolumn{3}{c}{Evaluation}\\
+		\cmidrule{3-5}
+		& & Good & Ok & Not Good\\
+		\midrule
+		Title & \parbox{3cm}{To give content information to reader.} & Engaging. & Appropriate. & \parbox{3cm}{Not enough content information or too much.}\\
+		\midrule
+		Abstract & \parbox{3cm}{To concisely summarize the experimental question, general methods, major findings, and implications of the experiments in relation to what is known or expected} & \parbox{4cm}{Key information is presented completely and in a clear, concise way. All information is correct. Organization is logical. Captures any reader’s interest} & \parbox{4cm}{Sufficient information is presented in proper format. Would benefit from some reorganization. Understandable with some prior knowledge of experiment.} & \parbox{4cm}{Some key information is omitted or tangential information is included. Some information is misrepresented. Some implications are omitted. Incorrect format is used.}\\
+		\midrule
+		Introduction & \parbox{3cm}{To identify central experimental questions,	and appropriate background information. To present a plausible hypothesis and a means of testing it.} & \parbox{4cm}{Relevant background information is presented in balanced, engaging way. Your experimental goals and predictions are clear and seem a logical extension of existing knowledge. Writing is easy to read. All background information is correctly referenced.} & \parbox{4cm}{Relevant background	information is presented but could benefit from reorganization. Your experiment is well described and a plausible hypothesis is given. With some effort, reader can connect your experiments to background information. Writing is understandable.	Background information is correctly referenced.} & \parbox{4cm}{Background information is too general, too specific, missing and/or misrepresented. Experimental question is incorrectly or not identified. No plausible hypothesis is given. Writing style is not clear, correct or concise. References are not given or properly formatted}\\
+		\midrule
+		Related Work & \parbox{3cm}{To provide information about state-of-the-art solutions, baselines, and useful/required algorithms/techniques from the literature} & \parbox{4cm}{All baselines are presented in a brief format. Required background algorithms/techniques are explained. All citations are provided and correct. Only useful information is written.} & \parbox{4cm}{All baselines and algorithms/techniques are explained but have unnecessary too deep details.} & \parbox{4cm}{Not relevant/not used baselines. None or missing references. Rephrasing of original paper instead of brief summary.}\\
+		\midrule
+		\parbox{2cm}{Methodology and Experimental Setup} & \parbox{3cm}{To describe procedures correctly, clearly, and succinctly. Included a correctly formatted citation of the lab manual.} & \parbox{4cm}{Sufficient for another researcher to repeat your experiment. Steps presented.} & \parbox{4cm}{Procedures could be pieced together with some effort. Steps presented.} & \parbox{4cm}{Procedures incorrectly or unclearly described or omitted. Steps not presented.}\\
+		\midrule
+		Results & \parbox{3cm}{To present your data using text AND figures/tables.} & \parbox{4cm}{Text tells story of your major findings in logical and engaging way. Figures and tables are formatted for maximum clarity and ease of interpretation. All figures and tables have numbers, titles and legends that are easy for the reader to follow.} & \parbox{4cm}{Text presents data but could benefit from reorganization or editing to make story easier for reader. Text includes interpretation of results that is better suited for discussion section. Figures and tables are formatted to be clear and interpretable. All figures and tables have numbers, titles and legends.} & \parbox{4cm}{Text omits key findings, inaccurately describes data, or includes irrelevant information. Text difficult to read due to style or mechanics of writing. Text difficult to read due to logic or organization. Figures and tables missing information, improperly formatted or poorly designed. Figures and tables have inadequate or missing titles or legends.}\\
+		\midrule
+		Discussion & \parbox{3cm}{To evaluate meaning and importance of major findings.} & \parbox{4cm}{Appropriate conclusions drawn from findings. Connections made between experimental findings. Connections made between findings and background information. Future directions considered. Writing is compelling.} & \parbox{4cm}{Appropriate conclusions drawn from findings. Experimental limitations considered. Writing is clear.} & \parbox{4cm}{Conclusions omitted, incorrectly drawn or not related to hypothesis. Relationship between experimental findings and background information is missing or incorrectly drawn. Writing style and mechanics make argument difficult to follow.}\\
+		\midrule
+		References & \parbox{3cm}{To give credit work on which your own is based.} & \parbox{4cm}{Complete list of reliable sources, including peer-reviewed journal article(s). Properly formatted in body of report and in reference section.} & \parbox{4cm}{Adequate list or reliable sources. With minor exceptions, properly formatted in body of report and in reference section.} & \parbox{4cm}{List is incomplete or includes sources not cited in body of report. List includes inappropriate sources. List not properly formatted. References not properly cited in body of report.}\\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\begin{table*}
+	\centering
+	\caption{Evaluation of Writing Style}\label{tab:writing_evaluation}
+	\begin{tabular}{c|l|l}
+		\toprule
+		\multirow{2}{*}{Writing Style and Mechanics} & \multicolumn{2}{c}{Evaluation} \\
+		\cmidrule{2-3}
+		& Good & Not Good\\
+		\midrule
+		Verb Voice  & \parbox{4cm}{Appropriate for audience. Consistent passive or active voice.} & \parbox{4cm}{Too simple or too advanced. Irregular use of passive and active voice.}\\
+		\midrule
+		Word choice  & \parbox{4cm}{Concise. Says what you mean. Scientific  vocabulary used correctly.} & \parbox{4cm}{Verbose. Ambiguous or incorrect. Scientific vocabulary misused.}\\
+		\midrule
+		Fluency  & \parbox{4cm}{Sentences and paragraphs are well structured. Punctuation is correct or has only minor errors. Grammar is correct or has minor errors. Spelling is correct.} & \parbox{4cm}{Sentences are repetitive or awkward. Paragraphs are not logical. Periods, commas, colons, and semicolons are misused. Significant number of run-on sentences, sentence fragments, misplaced modifiers, subject/verb disagreements. Significant number of spelling errors.}\\
+		\midrule
+		Scientific format   & \parbox{4cm}{Past tense for describing new findings. Present tense used for accepted scientific knowledge and figure legends. All sections are included and properly formatted. Formal language} & \parbox{4cm}{Misleading verb tenses. Some sections are missing. Figures miss legends. References are not properly formatted. Informal language: contractions, slang, etc.}\\
+		\bottomrule
+	\end{tabular}
+\end{table*}
+
+\end{document}
