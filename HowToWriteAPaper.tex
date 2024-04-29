@@ -78,9 +78,11 @@ Always read the template of the conference/journal you are submitting your paper
 The title should be short (about 10 words), interesting, and it should describe the assigned task/project and/or what you found.
 
 \section*{Abstract}
-In some but not all cases. Again, learn what your reader expects. The abstract is a very short summary (usually around 150-250 words) of what the question is, what you found, and why it may be important. The importance of abstracts is increasing as more scientists/engineers/industries are using search engines to keep up with the literature. Since search engines can only search for words in a paper title and abstract, these may be the only parts that many people read. Consequently, a well written abstract is extraordinarily important.
+In some but not all cases. Again, learn what your reader expects. The abstract is a very short summary (usually around 150-250 words) of what the question is, what you found, and why it may be important. Be sure to clearly and concisely highlight your main findings and novelty, how your approach differs from / is better than / enhances the existing material reported in the literature.
 
-\section{Introduction}
+The importance of abstracts is increasing as more scientists/engineers/industries are using search engines to keep up with the literature. Since search engines can only search for words in a paper title and abstract, these may be the only parts that many people read. Consequently, a well written abstract is extraordinarily important. Think of an abstract as something that sells your paper to the readers, i.e. makes them interested so they want to explore the whole paper.
+
+\section{Introduction}\label{sec:introduction}
 
 Introduce what your question is, explain why someone should find this interesting (what is a general problem that task tries to solve and why this problem has to be solved). Summarize what is currently known about the question, i.e. what is current state-of-the-art. Introduce a little of what you found and how you found it. You should explain any ideas or techniques that are necessary for someone to understand your results section but do not go into deep details.
 \begin{itemize}
@@ -97,13 +99,19 @@ In this section, introduce current state-of-the-art and additional information r
 
 Always remember, that if your paper is not a survey, your aim is to explain your own novel approach and not to rephrase the existing material. 
 
+It must be noted that the number of details also depends on the type of your paper. For example, coursework / term / thesis papers usually require more in-depth discussion on existing literature and not strictly limited in maximum size. This is done to assess how well you explored the given problem/task. For conferences and journals, readers usually have enough knowledge in your research area and you may skip some unnecessary details, i.e. it is enough to include only information described at the beginning of this Section.  
+
 \section{Methodology}\label{sec:methodology}
-Sometimes this Section can be joined with the following one. Explain your novel approach here in details. A good idea would be to show a graphical Figure summarizing your method. Explain how your method differs from the existing ones (from those in Section \ref{sec:related_work}). Try to provide theoretical justification for the superiority of your approach (you may want to do it here or in Section \ref{sec:results}). If your method is good, but you do not understand why, ask yourself: maybe this good performance is accidental and your method is not that cool. Your paper will most likely be rejected in the absence of such justification.
+Sometimes this Section can be joined with the following one. Explain your novel approach here in details. Ideally, the paper should have enough information so the reader can reproduce it without any external source of details (code, for example). If you are limited in space, you may want to put some details in Appendix. A good idea would be to show a graphical Figure summarizing your method. Explain how your method differs from the existing ones (from those in Section \ref{sec:related_work}). Try to provide theoretical justification for the superiority of your approach (you may want to do it here or in Section \ref{sec:results}). If your method is good, but you do not understand why, ask yourself: maybe this good performance is accidental and your method is not that cool. Your paper will most likely be rejected in the absence of such justification.
 
 \section{Experimental Setup}\label{sec:experimental_setup}
-This Section and the previous one are like a cooking recipe. These two sections should be written in the past tense, since your experiments are completed at the time you are writing your report. Include enough detail so that someone can repeat the experiment. Provide the information about the datasets, hyperparameters, loss-functions, optimizers, number of epochs, batch size, schedulers, etc.. Information should be clearly written, detailed, and brief. Be careful not to mix results into this section!
+This Section and the previous one are like a cooking recipe. These two sections should be written in the past tense, since your experiments are completed at the time you are writing your report. Include enough detail so that someone can repeat the experiment. 
 
-If you want to do some specific measurements/experiments/analyses, explain how you do them here. For example, look at Sections IV.B and IV.C from \cite{grinberg2023rawspectrogram}.
+Write which dataset are you going to use. Justify your choice: why do you use this dataset and not another one (depending on the case, you may also do this in Sections \ref{sec:introduction} or \ref{sec:related_work}). The choice might be due to theoretical reasons, standards in the literature, proper comparison with other approaches. You might also include ablation experiments, in which you apply your method on different datasets. If you have enough space, it would be good to describe the dataset: number of objects per split, distribution, etc.
+
+Provide the information about the training / evaluation scheme: hyperparameters, loss-functions, optimizers, number of epochs, batch size, schedulers, etc.. Be sure to check that hyperparameters in your code and in your paper are the same. Information should be clearly written, detailed, and brief. Be careful not to mix results into this section!
+
+If you want to do some specific measurements / experiments / analyses, explain how you do them here in details. For example, look at Sections IV.B and IV.C from \cite{grinberg2023rawspectrogram}.
 
 Model reproducibility obligations require you to make your paper as reproducible as possible. In code, try to make all the instructions clear, add Docker, and indicate all packages. In paper, write your hardware, i.e. which GPU and CPU were used. 
 
@@ -121,7 +129,7 @@ that your own data are part of the body of established scientific knowledge, and
 	\item Include legends in every figure/table. Legends to the figures and tables explain the elements that appear in the illustration. Conclusions about the data are not included in the legends. Your figure legends should be written in the present tense since you are explaining elements that still exist at the time that you are writing the report. Follow the template requirements for figures/tables.
 \end{itemize}
 
-For the DL-oriented projects, start by introducing the metrics (this may be done in Section \ref{sec:experimental_setup} as well). Compare your model with the baselines. Do not forget about ablation studies; they will help you with the justification, which we talked about in Section \ref{sec:methodology}.
+For the DL-oriented projects, start by introducing the metrics (this may be done in Section \ref{sec:experimental_setup} as well). Compare your model with the baselines. Do not forget about ablation studies; they will help you with the justification, which we talked about in Section \ref{sec:methodology}. For example, if you proposed two novel techniques, run your model without both of them, with only one of them, with another one, and, finally, with both of them. This way you will identify which of them is more important. DL models might be seed-sensitive, therefore, run your pipeline several times and indicate the mean / variance.
 
 To follow modern trends of DL papers, you may want to include some efficiency metrics: number of parameters, floating-point operations (FLOPs), size of one batch, time needed for one epoch/step, inference time, real-time factor (in audio, ratio between GPU processing time and audio time), etc. 
 
@@ -159,6 +167,9 @@ Include only those references that pertain to the question at hand. You should l
 \appendix
 \subsection{Evaluation of the Report Quality}\label{sec:evaluation}
 Table \ref{tab:sec_evaluation} provides you with the general basic idea of how to understand if your report/paper is good or not. Table \ref{tab:writing_evaluation} provides you with the writing style guide. You should aim to follow the "good" evaluation criteria.
+
+\subsection{Ethics and Risks}\label{sec:ethics}
+There is a rising trend on assessing ethical risks, you can find information how to do this in \cite{hardebolle2023digital}.
 
 \begin{table*}
 	\centering
