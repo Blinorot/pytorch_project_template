@@ -1,1 +1,1 @@
-from src.trainer.trainer import *
+from src.trainer.trainer import Trainer

@@ -1,7 +1,6 @@
 from itertools import repeat
 
 from hydra.utils import instantiate
-from torch.utils.data import DataLoader
 
 from src.datasets.collate import collate_fn
 

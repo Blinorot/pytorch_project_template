@@ -3,10 +3,11 @@ from abc import abstractmethod
 import torch
 from numpy import inf
 from torch.nn.utils import clip_grad_norm_
+from tqdm import tqdm
 
+from src.datasets.data_utils import inf_loop
 from src.logger.wandb import WanDBWriter
 from src.metrics.tracker import MetricTracker
-from src.utils.data_utils import inf_loop
 from src.utils.io_utils import ROOT_PATH
 
 
@@ -33,7 +34,12 @@ class BaseTrainer:
         self.is_train = True
 
         self.config = config
-        cfg_trainer = config.trainer
+        if hasattr(self.config, "trainer"):
+            self.cfg_trainer = self.config.trainer
+        elif hasattr(self.config, "inference"):
+            self.cfg_trainer = self.config.inference
+        else:
+            raise NotImplementedError("Provide trainer or inference in config")
 
         self.device = device
         self.skip_oom = skip_oom
@@ -64,12 +70,14 @@ class BaseTrainer:
         # define epochs
         self._last_epoch = 0  # required for saving on interruption
         self.start_epoch = 1
-        self.epochs = cfg_trainer.n_epochs
+        self.epochs = self.cfg_trainer.n_epochs
 
         # configuration to monitor model performance and save best
 
-        self.save_period = cfg_trainer.save_period  # checkpoint each save_period epochs
-        self.monitor = cfg_trainer.get(
+        self.save_period = (
+            self.cfg_trainer.save_period
+        )  # checkpoint each save_period epochs
+        self.monitor = self.cfg_trainer.get(
             "monitor", "off"
         )  # format: "mnt_mode mnt_metric"
 
@@ -81,7 +89,7 @@ class BaseTrainer:
             assert self.mnt_mode in ["min", "max"]
 
             self.mnt_best = inf if self.mnt_mode == "min" else -inf
-            self.early_stop = cfg_trainer.get("early_stop", inf)
+            self.early_stop = self.cfg_trainer.get("early_stop", inf)
             if self.early_stop <= 0:
                 self.early_stop = inf
 
@@ -114,15 +122,6 @@ class BaseTrainer:
 
         if config.trainer.get("from_pretrained") is not None:
             self._from_pretrained(config.trainer.get("from_pretrained"))
-
-    @abstractmethod
-    def _train_epoch(self, epoch):
-        """
-        Training logic for an epoch
-
-        :param epoch: Current epoch number
-        """
-        raise NotImplementedError()
 
     def train(self):
         try:
@@ -160,6 +159,91 @@ class BaseTrainer:
 
             if stop_process:  # early_stop
                 break
+
+    def _train_epoch(self, epoch):
+        """
+        Training logic for an epoch
+
+        :param epoch: Integer, current training epoch.
+        :return: A log that contains average loss and metric in this epoch.
+        """
+        self.is_train = True
+        self.model.train()
+        self.train_metrics.reset()
+        self.writer.set_step((epoch - 1) * self.epoch_len)
+        self.writer.add_scalar("epoch", epoch)
+        for batch_idx, batch in enumerate(
+            tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
+        ):
+            try:
+                batch = self.process_batch(
+                    batch,
+                    metrics=self.train_metrics,
+                )
+            except torch.cuda.OutOfMemoryError as e:
+                if self.skip_oom:
+                    self.logger.warning("OOM on batch. Skipping batch.")
+                    torch.cuda.empty_cache()  # free some memory
+                    continue
+                else:
+                    raise e
+
+            self.train_metrics.update("grad_norm", self._get_grad_norm())
+
+            # log current results
+            if batch_idx % self.log_step == 0:
+                self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
+                self.logger.debug(
+                    "Train Epoch: {} {} Loss: {:.6f}".format(
+                        epoch, self._progress(batch_idx), batch["loss"].item()
+                    )
+                )
+                self.writer.add_scalar(
+                    "learning rate", self.lr_scheduler.get_last_lr()[0]
+                )
+                self._log_scalars(self.train_metrics)
+                self._log_batch(batch_idx, batch)
+                # we don't want to reset train metrics at the start of every epoch
+                # because we are interested in recent train metrics
+                last_train_metrics = self.train_metrics.result()
+                self.train_metrics.reset()
+            if batch_idx + 1 >= self.epoch_len:
+                break
+
+        log = last_train_metrics
+
+        # Run val/test
+        for part, dataloader in self.evaluation_dataloaders.items():
+            val_log = self._evaluation_epoch(epoch, part, dataloader)
+            log.update(**{f"{part}_{name}": value for name, value in val_log.items()})
+
+        return log
+
+    def _evaluation_epoch(self, epoch, part, dataloader):
+        """
+        Validate after training an epoch
+
+        :param epoch: Integer, current training epoch.
+        :return: A log that contains information about validation
+        """
+        self.is_train = False
+        self.model.eval()
+        self.evaluation_metrics.reset()
+        with torch.no_grad():
+            for batch_idx, batch in tqdm(
+                enumerate(dataloader),
+                desc=part,
+                total=len(dataloader),
+            ):
+                batch = self.process_batch(
+                    batch,
+                    metrics=self.evaluation_metrics,
+                )
+            self.writer.set_step(epoch * self.epoch_len, part)
+            self._log_scalars(self.evaluation_metrics)
+            self._log_batch(batch_idx, batch, part)
+
+        return self.evaluation_metrics.result()
 
     def _monitor_performance(self, log, not_improved_count):
         best = False
@@ -201,7 +285,7 @@ class BaseTrainer:
         """
         Move all necessary tensors to the device
         """
-        for tensor_for_device in self.config.trainer.device_tensors:
+        for tensor_for_device in self.cfg_trainer.device_tensors:
             batch[tensor_for_device] = batch[tensor_for_device].to(self.device)
         return batch
 
@@ -243,6 +327,13 @@ class BaseTrainer:
             current = batch_idx
             total = self.epoch_len
         return base.format(current, total, 100.0 * current / total)
+
+    @abstractmethod
+    def _log_batch(self, batch_idx, batch, mode="train"):
+        """
+        Log data from batch
+        """
+        return NotImplementedError()
 
     def _log_scalars(self, metric_tracker: MetricTracker):
         if self.writer is None:

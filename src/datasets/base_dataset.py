@@ -9,10 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 class BaseDataset(Dataset):
-    def __init__(self, index, limit=None, instance_transforms=None):
+    def __init__(
+        self, index, limit=None, shuffle_index=False, instance_transforms=None
+    ):
         self._assert_index_is_valid(index)
 
-        index = self._shuffle_and_limit_index(index, limit)
+        index = self._shuffle_and_limit_index(index, limit, shuffle_index)
         self._index: List[dict] = index
 
         self.instance_transforms = instance_transforms
@@ -56,9 +58,10 @@ class BaseDataset(Dataset):
         return sorted(index, key=lambda x: x["KEY_FOR_SORTING"])
 
     @staticmethod
-    def _shuffle_and_limit_index(index, limit):
-        random.seed(42)
-        random.shuffle(index)
+    def _shuffle_and_limit_index(index, limit, shuffle_index):
+        if shuffle_index:
+            random.seed(42)
+            random.shuffle(index)
 
         if limit is not None:
             index = index[:limit]

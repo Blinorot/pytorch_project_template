@@ -6,8 +6,8 @@ import numpy as np
 import torch
 from hydra.utils import instantiate
 
+from src.datasets.data_utils import get_dataloaders
 from src.trainer import Trainer
-from src.utils.data_utils import get_dataloaders
 from src.utils.init_utils import setup_saving_and_logging
 
 warnings.filterwarnings("ignore", category=UserWarning)
