@@ -2,8 +2,9 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-import wandb
 from omegaconf import OmegaConf
+
+import wandb
 
 
 class WanDBWriter:
@@ -51,6 +52,9 @@ class WanDBWriter:
 
     def _scalar_name(self, scalar_name):
         return f"{scalar_name}_{self.mode}"
+
+    def add_checkpoint(self, checkpoint_path, save_dir):
+        self.wandb.save(checkpoint_path, base_path=save_dir)
 
     def add_scalar(self, scalar_name, scalar):
         self.wandb.log(

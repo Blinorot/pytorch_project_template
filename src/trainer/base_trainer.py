@@ -361,10 +361,14 @@ class BaseTrainer:
         filename = str(self.checkpoint_dir / f"checkpoint-epoch{epoch}.pth")
         if not (only_best and save_best):
             torch.save(state, filename)
+            if self.config.writer.log_checkpoints:
+                self.writer.add_checkpoint(filename, str(self.checkpoint_dir.parent))
             self.logger.info(f"Saving checkpoint: {filename} ...")
         if save_best:
             best_path = str(self.checkpoint_dir / "model_best.pth")
             torch.save(state, best_path)
+            if self.config.writer.log_checkpoints:
+                self.writer.add_checkpoint(best_path, str(self.checkpoint_dir.parent))
             self.logger.info("Saving current best: model_best.pth ...")
 
     def _resume_checkpoint(self, resume_path):
