@@ -78,7 +78,11 @@ class CometMLWriter:
         return f"{scalar_name}_{self.mode}"
 
     def add_checkpoint(self, checkpoint_path, save_dir):
-        self.exp.save(checkpoint_path, base_path=save_dir)
+        # For comet, save dir is not required
+        # It is kept for consistency with WandB
+        self.exp.log_model(
+            name="checkpoints", file_or_folder=checkpoint_path, overwrite=True
+        )
 
     def add_scalar(self, scalar_name, scalar):
         self.exp.log_metrics(
