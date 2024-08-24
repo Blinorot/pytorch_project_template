@@ -241,7 +241,9 @@ class BaseTrainer:
                 )
             self.writer.set_step(epoch * self.epoch_len, part)
             self._log_scalars(self.evaluation_metrics)
-            self._log_batch(batch_idx, batch, part)
+            self._log_batch(
+                batch_idx, batch, part
+            )  # log only the last batch during inference
 
         return self.evaluation_metrics.result()
 

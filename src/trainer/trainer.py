@@ -50,6 +50,6 @@ class Trainer(BaseTrainer):
         if mode == "train":  # the method is called only every self.log_step steps
             # Log Stuff
             pass
-        elif batch_idx == 0:  # log only the first batch during inference
+        else:
             # Log Stuff
             pass

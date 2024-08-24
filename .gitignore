@@ -105,6 +105,7 @@ data/
 input/
 saved/
 wandb/
+.cometml-runs/
 outputs/
 
 # editor, os cache directory

@@ -117,7 +117,7 @@ class CometMLWriter:
 
     def add_text(self, scalar_name, text):
         self.exp.log_text(
-            text=self._scalar_name(scalar_name) + ": " + text, step=self.step
+            text=text, step=self.step, metadata={"name": self._scalar_name(scalar_name)}
         )
 
     def add_histogram(self, scalar_name, hist, bins=None):
@@ -131,10 +131,12 @@ class CometMLWriter:
         )
 
     def add_table(self, table_name, table: pd.DataFrame):
+        self.exp.set_step(self.step)
+        # log_table does not support step directly
         self.exp.log_table(
             filename=self._scalar_name(table_name) + ".csv",
             tabular_data=table,
-            step=self.step,
+            headers=True,
         )
 
     def add_images(self, scalar_name, images):
