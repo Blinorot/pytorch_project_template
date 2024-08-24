@@ -4,38 +4,58 @@ import numpy as np
 import pandas as pd
 
 
-class WandBWriter:
+class CometMLWriter:
     def __init__(
         self,
         logger,
         project_config,
         project_name,
-        entity=None,
+        workspace=None,
         run_id=None,
         run_name=None,
         mode="online",
         **kwargs,
     ):
         try:
-            import wandb
+            import comet_ml
 
-            wandb.login()
+            comet_ml.login()
 
             self.run_id = run_id
 
-            wandb.init(
-                project=project_name,
-                entity=entity,
-                config=project_config,
-                name=run_name,
-                resume="allow",  # resume the run if run_id existed
-                id=self.run_id,
-                mode=mode,
-            )
-            self.wandb = wandb
+            resume = False
+            if project_config["trainer"].get("resume_from") is not None:
+                resume = True
+
+            if resume:
+                if mode == "offline":
+                    exp_class = comet_ml.ExistingOfflineExperiment
+                else:
+                    exp_class = comet_ml.ExistingExperiment
+
+                self.exp = exp_class(experiment_key=self.run_id)
+            else:
+                if mode == "offline":
+                    exp_class = comet_ml.OfflineExperiment
+                else:
+                    exp_class = comet_ml.Experiment
+
+                self.exp = exp_class(
+                    project_name=project_name,
+                    workspace=workspace,
+                    experiment_key=self.run_id,
+                    log_code=False,
+                    log_graph=False,
+                    auto_metric_logging=False,
+                    auto_param_logging=False,
+                )
+                self.exp.set_name(run_name)
+                self.exp.log_parameters(parameters=project_config)
+
+            self.comel_ml = comet_ml
 
         except ImportError:
-            logger.warning("For use wandb install it via \n\t pip install wandb")
+            logger.warning("For use comet_ml install it via \n\t pip install comet_ml")
 
         self.step = 0
         self.mode = ""
@@ -58,10 +78,10 @@ class WandBWriter:
         return f"{scalar_name}_{self.mode}"
 
     def add_checkpoint(self, checkpoint_path, save_dir):
-        self.wandb.save(checkpoint_path, base_path=save_dir)
+        self.exp.save(checkpoint_path, base_path=save_dir)
 
     def add_scalar(self, scalar_name, scalar):
-        self.wandb.log(
+        self.exp.log_metrics(
             {
                 self._scalar_name(scalar_name): scalar,
             },
@@ -69,7 +89,7 @@ class WandBWriter:
         )
 
     def add_scalars(self, tag, scalars):
-        self.wandb.log(
+        self.exp.log_metrics(
             {
                 f"{scalar_name}_{tag}_{self.mode}": scalar
                 for scalar_name, scalar in scalars.items()
@@ -78,24 +98,22 @@ class WandBWriter:
         )
 
     def add_image(self, scalar_name, image):
-        self.wandb.log(
-            {self._scalar_name(scalar_name): self.wandb.Image(image)}, step=self.step
+        self.exp.log_image(
+            image_data=image, name=self._scalar_name(scalar_name), step=self.step
         )
 
     def add_audio(self, scalar_name, audio, sample_rate=None):
         audio = audio.detach().cpu().numpy().T
-        self.wandb.log(
-            {
-                self._scalar_name(scalar_name): self.wandb.Audio(
-                    audio, sample_rate=sample_rate
-                )
-            },
+        self.exp.log_audio(
+            file_name=self._scalar_name(scalar_name),
+            audio_data=audio,
+            sample_rate=sample_rate,
             step=self.step,
         )
 
     def add_text(self, scalar_name, text):
-        self.wandb.log(
-            {self._scalar_name(scalar_name): self.wandb.Html(text)}, step=self.step
+        self.exp.log_text(
+            text=self._scalar_name(scalar_name) + ": " + text, step=self.step
         )
 
     def add_histogram(self, scalar_name, hist, bins=None):
@@ -104,13 +122,14 @@ class WandBWriter:
         if np_hist[0].shape[0] > 512:
             np_hist = np.histogram(hist, bins=512)
 
-        hist = self.wandb.Histogram(np_histogram=np_hist)
-
-        self.wandb.log({self._scalar_name(scalar_name): hist}, step=self.step)
+        self.exp.log_histogram_3d(
+            values=hist, name=self._scalar_name(scalar_name), step=self.step
+        )
 
     def add_table(self, table_name, table: pd.DataFrame):
-        self.wandb.log(
-            {self._scalar_name(table_name): self.wandb.Table(dataframe=table)},
+        self.exp.log_table(
+            filename=self._scalar_name(table_name) + ".csv",
+            tabular_data=table,
             step=self.step,
         )
 

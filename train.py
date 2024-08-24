@@ -5,6 +5,7 @@ import hydra
 import numpy as np
 import torch
 from hydra.utils import instantiate
+from omegaconf import OmegaConf
 
 from src.datasets.data_utils import get_dataloaders
 from src.trainer import Trainer
@@ -27,7 +28,9 @@ def set_random_seed(seed):
 def main(config):
     set_random_seed(config.trainer.seed)
 
+    project_config = OmegaConf.to_container(config)
     logger = setup_saving_and_logging(config)
+    writer = instantiate(config.writer, logger, project_config)
 
     if config.trainer.device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -65,6 +68,7 @@ def main(config):
         dataloaders=dataloaders,
         epoch_len=epoch_len,
         logger=logger,
+        writer=writer,
         batch_transforms=batch_transforms,
         skip_oom=config.trainer.get("skip_oom", True),
     )

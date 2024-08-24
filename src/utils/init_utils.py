@@ -1,11 +1,21 @@
 import logging
+import secrets
 import shutil
+import string
 
 from omegaconf import OmegaConf
 
-import wandb
 from src.logger.logger import setup_logging
 from src.utils.io_utils import ROOT_PATH
+
+
+# https://github.com/wandb/wandb/blob/main/wandb/sdk/lib/runid.py
+def generate_id(length: int = 8) -> str:
+    """Generate a random base-36 string of `length` digits."""
+    # There are ~2.8T base-36 8-digit strings. If we generate 210k ids,
+    # we'll have a ~1% chance of collision.
+    alphabet = string.ascii_lowercase + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def resume_config(save_dir):
@@ -32,7 +42,7 @@ def saving_init(save_dir, config):
     save_dir.mkdir(exist_ok=True, parents=True)
 
     if run_id is None:
-        run_id = wandb.util.generate_id()
+        run_id = generate_id(length=config.writer.id_length)
 
     OmegaConf.set_struct(config, False)
     config.writer.run_id = run_id

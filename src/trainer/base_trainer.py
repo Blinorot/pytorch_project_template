@@ -6,7 +6,6 @@ from torch.nn.utils import clip_grad_norm_
 from tqdm import tqdm
 
 from src.datasets.data_utils import inf_loop
-from src.logger.wandb import WanDBWriter
 from src.metrics.tracker import MetricTracker
 from src.utils.io_utils import ROOT_PATH
 
@@ -27,6 +26,7 @@ class BaseTrainer:
         device,
         dataloaders,
         logger,
+        writer,
         epoch_len=None,
         skip_oom=True,
         batch_transforms=None,
@@ -94,7 +94,7 @@ class BaseTrainer:
                 self.early_stop = inf
 
         # setup visualization writer instance
-        self.writer = WanDBWriter(config, self.logger)
+        self.writer = writer
 
         # define metrics
         self.metrics = metrics
