@@ -79,6 +79,12 @@ python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
 
 Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
 
+To run inference (evaluate the model or save predictions):
+
+```bash
+python3 inference.py HYDRA_CONFIG_ARGUMENTS
+```
+
 ## Useful Links:
 
 You may find the following liks useful:

@@ -1,17 +1,32 @@
 import logging
+import random
 import secrets
 import shutil
 import string
 
+import numpy as np
+import torch
 from omegaconf import OmegaConf
 
 from src.logger.logger import setup_logging
 from src.utils.io_utils import ROOT_PATH
 
 
+def set_random_seed(seed):
+    # fix random seeds for reproducibility
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    # benchmark=True works faster but reproducibility decreases
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+
+
 # https://github.com/wandb/wandb/blob/main/wandb/sdk/lib/runid.py
 def generate_id(length: int = 8) -> str:
-    """Generate a random base-36 string of `length` digits."""
+    """
+    Generate a random base-36 string of `length` digits.
+    """
     # There are ~2.8T base-36 8-digit strings. If we generate 210k ids,
     # we'll have a ~1% chance of collision.
     alphabet = string.ascii_lowercase + string.digits

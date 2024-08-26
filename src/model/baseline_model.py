@@ -19,7 +19,7 @@ class BaselineModel(nn.Module):
 
     def __str__(self):
         """
-        Model prints with number of parameters
+        Model prints with the number of parameters
         """
         all_parameters = sum([p.numel() for p in self.parameters()])
         trainable_parameters = sum(

@@ -3,7 +3,7 @@ from abc import abstractmethod
 import torch
 from numpy import inf
 from torch.nn.utils import clip_grad_norm_
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from src.datasets.data_utils import inf_loop
 from src.metrics.tracker import MetricTracker
@@ -34,12 +34,7 @@ class BaseTrainer:
         self.is_train = True
 
         self.config = config
-        if hasattr(self.config, "trainer"):
-            self.cfg_trainer = self.config.trainer
-        elif hasattr(self.config, "inference"):
-            self.cfg_trainer = self.config.inference
-        else:
-            raise NotImplementedError("Provide trainer or inference in config")
+        self.cfg_trainer = self.config.trainer
 
         self.device = device
         self.skip_oom = skip_oom
@@ -164,8 +159,10 @@ class BaseTrainer:
         """
         Training logic for an epoch
 
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains average loss and metric in this epoch.
+        Args:
+            epoch (int): current training epoch
+        Returns:
+            Logs that contain the average loss and metric in this epoch
         """
         self.is_train = True
         self.model.train()
@@ -223,8 +220,10 @@ class BaseTrainer:
         """
         Validate after training an epoch
 
-        :param epoch: Integer, current training epoch.
-        :return: A log that contains information about validation
+        Args:
+            epoch (int): current training epoch
+        Returns:
+            Logs that contain the information about validation
         """
         self.is_train = False
         self.model.eval()
@@ -347,8 +346,9 @@ class BaseTrainer:
         """
         Saving checkpoints
 
-        :param epoch: current epoch number
-        :param save_best: if True, rename the saved checkpoint to 'model_best.pth'
+        Args:
+            epoch (int): current epoch number
+            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'
         """
         arch = type(self.model).__name__
         state = {
@@ -377,7 +377,8 @@ class BaseTrainer:
         """
         Resume from saved checkpoints
 
-        :param resume_path: Checkpoint path to be resumed
+        Args:
+            resume_path (str): Checkpoint path to be resumed
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
@@ -415,10 +416,14 @@ class BaseTrainer:
         """
         Init model with weights from pretrained pth file
 
-        :param pretrained_path: path to model state dict
+        Args:
+            pretrained_path (str): path to the model state dict
         """
         pretrained_path = str(pretrained_path)
-        self.logger.info(f"Loading model weights from: {pretrained_path} ...")
+        if hasattr(self, "logger"):  # to support both trainer and inferencer
+            self.logger.info(f"Loading model weights from: {pretrained_path} ...")
+        else:
+            print(f"Loading model weights from: {pretrained_path} ...")
         checkpoint = torch.load(pretrained_path, self.device)
 
         if checkpoint.get("state_dict") is not None:
