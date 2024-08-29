@@ -166,18 +166,18 @@ class BaseTrainer:
             self._last_epoch = epoch
             result = self._train_epoch(epoch)
 
-            # save logged informations into log dict
-            log = {"epoch": epoch}
-            log.update(result)
+            # save logged information into logs dict
+            logs = {"epoch": epoch}
+            logs.update(result)
 
-            # print logged informations to the screen
-            for key, value in log.items():
+            # print logged information to the screen
+            for key, value in logs.items():
                 self.logger.info(f"    {key:15s}: {value}")
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
             best, stop_process, not_improved_count = self._monitor_performance(
-                log, not_improved_count
+                logs, not_improved_count
             )
 
             if epoch % self.save_period == 0 or best:
@@ -194,7 +194,7 @@ class BaseTrainer:
         Args:
             epoch (int): current training epoch.
         Returns:
-            log (dict): logs that contain the average loss and metric in
+            logs (dict): logs that contain the average loss and metric in
                 this epoch.
         """
         self.is_train = True
