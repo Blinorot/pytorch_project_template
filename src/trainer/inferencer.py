@@ -26,20 +26,23 @@ class Inferencer(BaseTrainer):
         skip_model_load=False,
     ):
         """
+        Initialize the Inferencer.
+
         Args:
-            model (nn.Module): PyTorch model
-            config (DictConfig): Inferencer Config
-            device (str): device for tensors and model
+            model (nn.Module): PyTorch model.
+            config (DictConfig): run config containing inferencer config.
+            device (str): device for tensors and model.
             dataloaders (dict[DataLoader]): dataloaders for different
-                sets of data
+                sets of data.
             save_path (str): path to save model predictions and other
-                information
-            metrics (src.metrics.BaseMetric | None): metrics to use
-                during evaluation
+                information.
+            metrics (dict): dict with the definition of metrics for
+                inference (metrics[inference]). Each metric is an instance
+                of src.metrics.BaseMetric.
             batch_transforms (dict[nn.Module] | None): transforms that
                 should be applied on the whole batch. Depend on the
                 tensor name.
-            skip_model_load (bool): If False, require the user to set
+            skip_model_load (bool): if False, require the user to set
                 pre-trained checkpoint path. Set this argument to True if
                 the model desirable weights are defined outside of the
                 Inferencer Class.
@@ -79,7 +82,11 @@ class Inferencer(BaseTrainer):
 
     def run_inference(self):
         """
-        Run Inference on Each Partition
+        Run inference on each partition.
+
+        Returns:
+            part_logs (dict): part_logs[part_name] contains logs
+                for the part_name partition.
         """
         part_logs = {}
         for part, dataloader in self.evaluation_dataloaders.items():
@@ -88,6 +95,27 @@ class Inferencer(BaseTrainer):
         return part_logs
 
     def process_batch(self, batch_idx, batch, metrics, part):
+        """
+        Run batch through the model, compute metrics, and
+        save predictions to disk.
+
+        Save directory is defined by save_path in the inference
+        config and current partition.
+
+        Args:
+            batch_idx (int): the index of the current batch.
+            batch (dict): dict-based batch containing the data from
+                the dataloader.
+            metrics (MetricTracker): MetricTracker object that computes
+                and aggregates the metrics. The metrics depend on the type
+                of the partition (train or inference).
+            part (str): name of the partition. Used to define proper saving
+                directory.
+        Returns:
+            batch (dict): dict-based batch containing the data from
+                the dataloader (possibly transformed via batch transform)
+                and model outputs.
+        """
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
 
@@ -127,6 +155,12 @@ class Inferencer(BaseTrainer):
     def _inference_part(self, part, dataloader):
         """
         Run inference on a given partition and save predictions
+
+        Args:
+            part (str): name of the partition.
+            dataloader (DataLoader): dataloader for the given partition.
+        Returns:
+            logs (dict): metrics, calculated on the partition.
         """
 
         self.is_train = False

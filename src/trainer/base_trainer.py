@@ -12,7 +12,7 @@ from src.utils.io_utils import ROOT_PATH
 
 class BaseTrainer:
     """
-    Base class for all trainers
+    Base class for all trainers.
     """
 
     def __init__(
@@ -31,6 +31,30 @@ class BaseTrainer:
         skip_oom=True,
         batch_transforms=None,
     ):
+        """
+        Args:
+            model (nn.Module): PyTorch model.
+            criterion (nn.Module): loss function for model training.
+            metrics (dict): dict with the definition of metrics for training
+                (metrics[train]) and inference (metrics[inference]). Each
+                metric is an instance of src.metrics.BaseMetric.
+            optimizer (Optimizer): optimizer for the model.
+            lr_scheduler (LRScheduler): learning rate scheduler for the
+                optimizer.
+            config (DictConfig): experiment config containing training config.
+            device (str): device for tensors and model.
+            dataloaders (dict[DataLoader]): dataloaders for different
+                sets of data.
+            logger (Logger): logger that logs output.
+            writer (WandBWriter | CometMLWriter): experiment tracker.
+            epoch_len (int | None): number of steps in each epoch for
+                iteration-based training. If None, use epoch-based
+                training (len(dataloader)).
+            skip_oom (bool): skip batches with the OutOfMemory error.
+            batch_transforms (dict[Callable] | None): transforms that
+                should be applied on the whole batch. Depend on the
+                tensor name.
+        """
         self.is_train = True
 
         self.config = config
@@ -119,6 +143,9 @@ class BaseTrainer:
             self._from_pretrained(config.trainer.get("from_pretrained"))
 
     def train(self):
+        """
+        Wrapper around training process to save model on keyboard interrupt.
+        """
         try:
             self._train_process()
         except KeyboardInterrupt as e:
@@ -128,7 +155,11 @@ class BaseTrainer:
 
     def _train_process(self):
         """
-        Full training logic
+        Full training logic:
+
+        Training model for an epoch, evaluating it on non-train partitions,
+        and monitoring the performance improvement (for early stopping
+        and saving the best checkpoint).
         """
         not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
@@ -157,12 +188,14 @@ class BaseTrainer:
 
     def _train_epoch(self, epoch):
         """
-        Training logic for an epoch
+        Training logic for an epoch, including logging and evaluation on
+        non-train partitions.
 
         Args:
-            epoch (int): current training epoch
+            epoch (int): current training epoch.
         Returns:
-            Logs that contain the average loss and metric in this epoch
+            log (dict): logs that contain the average loss and metric in
+                this epoch.
         """
         self.is_train = True
         self.model.train()
@@ -207,23 +240,25 @@ class BaseTrainer:
             if batch_idx + 1 >= self.epoch_len:
                 break
 
-        log = last_train_metrics
+        logs = last_train_metrics
 
         # Run val/test
         for part, dataloader in self.evaluation_dataloaders.items():
-            val_log = self._evaluation_epoch(epoch, part, dataloader)
-            log.update(**{f"{part}_{name}": value for name, value in val_log.items()})
+            val_logs = self._evaluation_epoch(epoch, part, dataloader)
+            logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
 
-        return log
+        return logs
 
     def _evaluation_epoch(self, epoch, part, dataloader):
         """
-        Validate after training an epoch
+        Evaluate model on the partition after training for an epoch.
 
         Args:
-            epoch (int): current training epoch
+            epoch (int): current training epoch.
+            part (str): partition to evaluate on
+            dataloader (DataLoader): dataloader for the partition.
         Returns:
-            Logs that contain the information about validation
+            logs (dict): logs that contain the information about evaluation.
         """
         self.is_train = False
         self.model.eval()
@@ -246,7 +281,23 @@ class BaseTrainer:
 
         return self.evaluation_metrics.result()
 
-    def _monitor_performance(self, log, not_improved_count):
+    def _monitor_performance(self, logs, not_improved_count):
+        """
+        Check if there is an improvement in the metrics. Used for early
+        stopping and saving the best checkpoint.
+
+        Args:
+            logs (dict): logs after training and evaluating the model for
+                an epoch.
+            not_improved_count (int): the current number of epochs without
+                improvement.
+        Returns:
+            best (bool): if True, the monitored metric has improved.
+            stop_process (bool): if True, stop the process (early stopping).
+                The metric did not improve for too much epochs.
+            not_improved_count (int): updated number of epochs without
+                improvement.
+        """
         best = False
         stop_process = False
         if self.mnt_mode != "off":
@@ -254,9 +305,9 @@ class BaseTrainer:
                 # check whether model performance improved or not,
                 # according to specified metric(mnt_metric)
                 if self.mnt_mode == "min":
-                    improved = log[self.mnt_metric] <= self.mnt_best
+                    improved = logs[self.mnt_metric] <= self.mnt_best
                 elif self.mnt_mode == "max":
-                    improved = log[self.mnt_metric] >= self.mnt_best
+                    improved = logs[self.mnt_metric] >= self.mnt_best
                 else:
                     improved = False
             except KeyError:
@@ -268,7 +319,7 @@ class BaseTrainer:
                 improved = False
 
             if improved:
-                self.mnt_best = log[self.mnt_metric]
+                self.mnt_best = logs[self.mnt_metric]
                 not_improved_count = 0
                 best = True
             else:
@@ -284,13 +335,34 @@ class BaseTrainer:
 
     def move_batch_to_device(self, batch):
         """
-        Move all necessary tensors to the device
+        Move all necessary tensors to the device.
+
+        Args:
+            batch (dict): dict-based batch containing the data from
+                the dataloader.
+        Returns:
+            batch (dict): dict-based batch containing the data from
+                the dataloader with some of the tensors on the device.
         """
         for tensor_for_device in self.cfg_trainer.device_tensors:
             batch[tensor_for_device] = batch[tensor_for_device].to(self.device)
         return batch
 
     def transform_batch(self, batch):
+        """
+        Transforms elements in batch. Like instance transform inside the
+        BaseDataset class, but for the whole batch. Improves pipeline speed,
+        especially if used with a GPU.
+
+        Each tensor in a batch undergoes its own transform defined by the key.
+
+        Args:
+            batch (dict): dict-based batch containing the data from
+                the dataloader.
+        Returns:
+            batch (dict): dict-based batch containing the data from
+                the dataloader (possibly transformed via batch transform).
+        """
         # do batch transforms on device
         transform_type = "train" if self.is_train else "inference"
         transforms = self.batch_transforms.get(transform_type)
@@ -302,6 +374,10 @@ class BaseTrainer:
         return batch
 
     def _clip_grad_norm(self):
+        """
+        Clips the gradient norm by the value defined in
+        config.trainer.max_grad_norm
+        """
         if self.config["trainer"].get("max_grad_norm", None) is not None:
             clip_grad_norm_(
                 self.model.parameters(), self.config["trainer"]["max_grad_norm"]
@@ -309,6 +385,14 @@ class BaseTrainer:
 
     @torch.no_grad()
     def _get_grad_norm(self, norm_type=2):
+        """
+        Calculates the gradient norm for logging.
+
+        Args:
+            norm_type (float | str | None): the order of the norm.
+        Returns:
+            total_norm (float): the calculated norm.
+        """
         parameters = self.model.parameters()
         if isinstance(parameters, torch.Tensor):
             parameters = [parameters]
@@ -320,6 +404,15 @@ class BaseTrainer:
         return total_norm.item()
 
     def _progress(self, batch_idx):
+        """
+        Calculates the percentage of processed batch within the epoch.
+
+        Args:
+            batch_idx (int): the current batch index.
+        Returns:
+            progress (str): contains current step and percentage
+                within the epoch.
+        """
         base = "[{}/{} ({:.0f}%)]"
         if hasattr(self.train_dataloader, "n_samples"):
             current = batch_idx * self.train_dataloader.batch_size
@@ -332,11 +425,27 @@ class BaseTrainer:
     @abstractmethod
     def _log_batch(self, batch_idx, batch, mode="train"):
         """
-        Log data from batch
+        Abstract method. Should be defined in the nested Trainer Class.
+
+        Log data from batch. Calls self.writer.add_* to log data
+        to the experiment tracker.
+
+        Args:
+            batch_idx (int): index of the current batch.
+            batch (dict): dict-based batch after going through
+                the 'process_batch' function.
+            mode (str): train or inference. Defines which logging
+                rules to apply.
         """
         return NotImplementedError()
 
     def _log_scalars(self, metric_tracker: MetricTracker):
+        """
+        Wrapper around the writer 'add_scalar' to log all metrics.
+
+        Args:
+            metric_tracker (MetricTracker): calculated metrics.
+        """
         if self.writer is None:
             return
         for metric_name in metric_tracker.keys():
@@ -344,11 +453,14 @@ class BaseTrainer:
 
     def _save_checkpoint(self, epoch, save_best=False, only_best=False):
         """
-        Saving checkpoints
+        Save the checkpoints.
 
         Args:
-            epoch (int): current epoch number
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'
+            epoch (int): current epoch number.
+            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'.
+            only_best (bool): if True and the checkpoint is the best, save it only as
+                'model_best.pth'(do not duplicate the checkpoint as
+                checkpoint-epochEpochNumber.pth)
         """
         arch = type(self.model).__name__
         state = {
@@ -375,10 +487,15 @@ class BaseTrainer:
 
     def _resume_checkpoint(self, resume_path):
         """
-        Resume from saved checkpoints
+        Resume from a saved checkpoint (in case of server crash, etc.).
+        The function loads state dicts for everything, including model,
+        optimizers, etc.
+
+        Notice that the checkpoint should be located in the current experiment
+        saved directory (where all checkpoints are saved in '_save_checkpoint').
 
         Args:
-            resume_path (str): Checkpoint path to be resumed
+            resume_path (str): Path to the checkpoint to be resumed.
         """
         resume_path = str(resume_path)
         self.logger.info(f"Loading checkpoint: {resume_path} ...")
@@ -414,10 +531,14 @@ class BaseTrainer:
 
     def _from_pretrained(self, pretrained_path):
         """
-        Init model with weights from pretrained pth file
+        Init model with weights from pretrained pth file.
+
+        Notice that 'pretrained_path' can be any path on the disk. It is not
+        necessary to locate it in the experiment saved dir. The function
+        initializes only the model.
 
         Args:
-            pretrained_path (str): path to the model state dict
+            pretrained_path (str): path to the model state dict.
         """
         pretrained_path = str(pretrained_path)
         if hasattr(self, "logger"):  # to support both trainer and inferencer
