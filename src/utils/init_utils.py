@@ -1,8 +1,10 @@
 import logging
+import os
 import random
 import secrets
 import shutil
 import string
+import subprocess
 
 import numpy as np
 import torch
@@ -26,6 +28,7 @@ def set_random_seed(seed):
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
 
 # https://github.com/wandb/wandb/blob/main/wandb/sdk/lib/runid.py
@@ -42,6 +45,31 @@ def generate_id(length: int = 8) -> str:
     # we'll have a ~1% chance of collision.
     alphabet = string.ascii_lowercase + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def log_git_commit_and_patch(save_dir):
+    """
+    Log current git commit and patch to save dir.
+    Improves reproducibility by allowing to run the same code version:
+        git checkout commit_hash_from_commit_path
+        git apply patch_path
+
+    If you created new files and want to have them in patch,
+    stage them via git add before running the script.
+
+    Patch can be applied via the following command:
+        git apply patch_path
+
+    Args:
+        save_dir (Path): directory to save patch and commit in
+    """
+    print("Logging git commit and patch...")
+    commit_path = save_dir / "git_commit.txt"
+    patch_path = save_dir / "git_diff.patch"
+    with commit_path.open("w") as f:
+        subprocess.call(["git", "rev-parse", "HEAD"], stdout=f)
+    with patch_path.open("w") as f:
+        subprocess.call(["git", "diff", "HEAD"], stdout=f)
 
 
 def resume_config(save_dir):
@@ -92,6 +120,8 @@ def saving_init(save_dir, config):
     OmegaConf.set_struct(config, True)
 
     OmegaConf.save(config, save_dir / "config.yaml")
+
+    log_git_commit_and_patch(save_dir)
 
 
 def setup_saving_and_logging(config):

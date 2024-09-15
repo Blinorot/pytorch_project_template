@@ -65,10 +65,10 @@ class CometMLWriter:
                     project_name=project_name,
                     workspace=workspace,
                     experiment_key=self.run_id,
-                    log_code=False,
-                    log_graph=False,
-                    auto_metric_logging=False,
-                    auto_param_logging=False,
+                    log_code=kwargs.get("log_code", False),
+                    log_graph=kwargs.get("log_graph", False),
+                    auto_metric_logging=kwargs.get("auto_metric_logging", False),
+                    auto_param_logging=kwargs.get("auto_param_logging", False),
                 )
                 self.exp.set_name(run_name)
                 self.exp.log_parameters(parameters=project_config)
