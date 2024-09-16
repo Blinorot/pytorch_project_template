@@ -1,29 +1,34 @@
+import torchvision
 from torch import nn
-from torch.nn import Sequential
 
 
-class BaselineModel(nn.Module):
+class ResNetModel(nn.Module):
     """
-    Simple MLP
+    Wrapper over ResNet18 from torchvision
     """
 
-    def __init__(self, n_feats, n_class, fc_hidden=512):
+    def __init__(self, input_channels, n_class, use_pretrained):
         """
         Args:
-            n_feats (int): number of input features.
+            input_channels (int): number of input_channels.
             n_class (int): number of classes.
-            fc_hidden (int): number of hidden features.
         """
         super().__init__()
 
-        self.net = Sequential(
-            # people say it can approximate any function...
-            nn.Linear(in_features=n_feats, out_features=fc_hidden),
-            nn.ReLU(),
-            nn.Linear(in_features=fc_hidden, out_features=fc_hidden),
-            nn.ReLU(),
-            nn.Linear(in_features=fc_hidden, out_features=n_class),
+        if use_pretrained:
+            weights = torchvision.models.ResNet18_Weights
+        else:
+            weights = None
+        self.resnet = torchvision.models.resnet18(weights=weights)
+        self.resnet.conv1 = nn.Conv2d(
+            input_channels,
+            self.resnet.conv1.out_channels,
+            self.resnet.conv1.kernel_size,
+            self.resnet.conv1.stride,
+            self.resnet.conv1.padding,
+            bias=self.resnet.conv1.bias,
         )
+        self.resnet.fc = nn.Linear(self.resnet.fc.in_features, n_class)
 
     def forward(self, img, **batch):
         """
@@ -34,7 +39,7 @@ class BaselineModel(nn.Module):
         Returns:
             output (dict): output dict containing logits.
         """
-        return {"logits": self.net(img.flatten(1))}
+        return {"logits": self.resnet(img)}
 
     def __str__(self):
         """

@@ -1,0 +1,4 @@
+test:
+  _target_: src.datasets.CIFARDataset
+  name: "test"
+  instance_transforms: ${transforms.instance_transforms.inference}

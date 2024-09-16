@@ -2,36 +2,20 @@
 
 <p align="center">
   <a href="#about">About</a> •
-  <a href="#examples">Examples</a> •
   <a href="#installation">Installation</a> •
   <a href="#how-to-use">How To Use</a> •
-  <a href="#useful-links">Useful Links</a> •
+  <a href="#examples">Examples</a> •
   <a href="#credits">Credits</a> •
   <a href="#license">License</a>
 </p>
 
 ## About
 
-This repository contains a template for [PyTorch](https://pytorch.org/)-based Deep Learning projects.
-
-The template utilizes different python-dev techniques to improve code readability. Configuration methods enhance reproducibility and experiments control.
-
-Repository is released as a part of [HSE DLA course](https://github.com/markovka17/dla), however, can easily be adopted for any DL-task.
-
-## Examples
-
-> [!IMPORTANT]
-> The main branch leaves some of the code parts empty or fills them with dummy examples, showing just the base structure. The final users can add code required for their own tasks.
-
-You can find examples of this template completed for different tasks in other branches:
-
-- [Image classification](todo): simple classification problem on [MNIST](todo) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf) datasets.
-
-- [ASR](todo): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
+This in an example usage of a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template). The task is to do image classification. We use [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
 
 ## Installation
 
-Installation may depend on your task. The general steps are the following:
+Follow these steps:
 
 0. (Optional) Create and activate new environment using [`conda`](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) or `venv` ([`+pyenv`](https://github.com/pyenv/pyenv)).
 
@@ -85,21 +69,25 @@ To run inference (evaluate the model or save predictions):
 python3 inference.py HYDRA_CONFIG_ARGUMENTS
 ```
 
-## Useful Links:
+## Examples
 
-You may find the following liks useful:
+To train a simple MLP on MNIST, run:
 
-- [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [pre-commits](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better python code development.
+```bash
+python3 train.py model=baseline
+```
 
-- [CLAIRE Template](https://github.com/CLAIRE-Labo/python-ml-research-template): additional template by [EPFL CLAIRE Laboratory](https://www.epfl.ch/labs/claire/) that can be combined with ours to enhance experiments reproducibility via [Docker](https://www.docker.com/).
+If you want train your MLP on CIFAR10, run this instead:
 
-- [Mamba](https://github.com/mamba-org/mamba) and [Poetry](https://python-poetry.org/): alternatives to [Conda](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) and [pip](https://pip.pypa.io/en/stable/installation/) package managers given above.
+```bash
+python3 train.py model=baseline model.n_feats=3072 datasets=cifar datasets/batch_transforms=cifar
+```
 
-- [Awesome README](https://github.com/matiassingers/awesome-readme): a list of awesome README files for inspiration. Check the basics [here](https://github.com/PurpleBooth/a-good-readme-template).
+If you want to fine-tune ResNet18 on CIFAR10, run this:
 
-- [Report branch](https://github.com/Blinorot/pytorch_project_template/tree/report): Guidelines for writing a scientific report/paper (with an emphasis on DL projects).
-
-- [Seminar on R&D Coding](https://youtu.be/sEA-Js5ZHxU): Seminar from the [LauzHack Deep Learning Bootcamp](https://github.com/LauzHack/deep-learning-bootcamp/) with template discussion and reasoning.
+```bash
+python3 train.py model=resnet datasets=cifar model.input_channels=3 transforms/batch_transforms=cifar_resnet
+```
 
 ## Credits
 

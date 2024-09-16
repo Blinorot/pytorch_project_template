@@ -2,6 +2,8 @@ import logging
 import random
 from typing import List
 
+import safetensors
+import safetensors.torch
 import torch
 from torch.utils.data import Dataset
 
@@ -57,10 +59,11 @@ class BaseDataset(Dataset):
         """
         data_dict = self._index[ind]
         data_path = data_dict["path"]
-        data_object = self.load_object(data_path)
-        data_label = data_dict["label"]
 
-        instance_data = {"data_object": data_object, "labels": data_label}
+        img = self.load_img(data_path)
+        label = data_dict["label"]
+
+        instance_data = {"img": img, "labels": label}
         instance_data = self.preprocess_data(instance_data)
 
         return instance_data
@@ -71,17 +74,17 @@ class BaseDataset(Dataset):
         """
         return len(self._index)
 
-    def load_object(self, path):
+    def load_img(self, path):
         """
-        Load object from disk.
+        Load img from disk.
 
         Args:
             path (str): path to the object.
         Returns:
-            data_object (Tensor):
+            img (Tensor):
         """
-        data_object = torch.load(path)
-        return data_object
+        img = safetensors.torch.load_file(path)["tensor"]
+        return img
 
     def preprocess_data(self, instance_data):
         """

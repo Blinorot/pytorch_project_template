@@ -1,0 +1,10 @@
+train:
+  _target_: src.datasets.MNISTDataset
+  name: "train"
+  limit: 5
+  instance_transforms: ${transforms.instance_transforms.inference}
+test:
+  _target_: src.datasets.MNISTDataset
+  name: "train"
+  limit: 5
+  instance_transforms: ${transforms.instance_transforms.inference}

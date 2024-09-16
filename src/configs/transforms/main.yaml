@@ -1,0 +1,8 @@
+defaults:
+  - batch_transforms: mnist
+  - _self_
+
+# this lines are required if you do not use instance transforms
+instance_transforms:
+  train: null
+  inference: null
