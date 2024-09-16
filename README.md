@@ -25,7 +25,7 @@ Repository is released as a part of [HSE DLA course](https://github.com/markovka
 
 You can find examples of this template completed for different tasks in other branches:
 
-- [Image classification](todo): simple classification problem on [MNIST](todo) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/learning-features-2009-TR.pdf) datasets.
+- [Image classification](https://github.com/Blinorot/pytorch_project_template/tree/example/image-classification): simple classification problem on [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
 
 - [ASR](todo): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
 
@@ -87,7 +87,7 @@ python3 inference.py HYDRA_CONFIG_ARGUMENTS
 
 ## Useful Links:
 
-You may find the following liks useful:
+You may find the following links useful:
 
 - [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [pre-commits](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better python code development.
 
