@@ -2,5 +2,7 @@ defaults:
   - batch_transforms: example
   - _self_
 
-instance_transforms.train: null # this line is required if you do not use instance transforms
-instance_transforms.inference: null
+# these lines are required if you do not use instance transforms
+instance_transforms:
+  train: null
+  inference: null
