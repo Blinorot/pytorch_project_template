@@ -1,4 +1,4 @@
-# PyTorch Template for DL projects
+# Image classification with PyTorch
 
 <p align="center">
   <a href="#about">About</a> •
