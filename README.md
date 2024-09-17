@@ -11,7 +11,7 @@
 
 ## About
 
-This in an example usage of a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template). The task is to do image classification. We use [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
+This in an example usage of a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template). The task is to do image classification. We use [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
 
 ## Installation
 
@@ -77,13 +77,13 @@ To train a simple MLP on MNIST, run:
 python3 train.py model=baseline
 ```
 
-If you want train your MLP on CIFAR10, run this instead:
+If you want train your MLP on CIFAR-10, run this instead:
 
 ```bash
 python3 train.py model=baseline model.n_feats=3072 datasets=cifar datasets/batch_transforms=cifar
 ```
 
-If you want to fine-tune ResNet18 on CIFAR10, run this:
+If you want to fine-tune ResNet18 on CIFAR-10, run this:
 
 ```bash
 python3 train.py model=resnet datasets=cifar model.input_channels=3 transforms/batch_transforms=cifar_resnet
@@ -91,7 +91,7 @@ python3 train.py model=resnet datasets=cifar model.input_channels=3 transforms/b
 
 ## Credits
 
-This repository is based on a heavily modified fork of [pytorch-template](https://github.com/victoresque/pytorch-template) and [asr_project_template](https://github.com/WrathOfGrapes/asr_project_template) repositories.
+This repository is based on a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template).
 
 ## License
 
