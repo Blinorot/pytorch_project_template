@@ -14,6 +14,20 @@ from src.logger.logger import setup_logging
 from src.utils.io_utils import ROOT_PATH
 
 
+def set_worker_seed(worker_id):
+    """
+    Set seed for each dataloader worker.
+
+    For more info, see https://pytorch.org/docs/stable/notes/randomness.html
+
+    Args:
+        worker_id (int): id of the worker.
+    """
+    worker_seed = torch.initial_seed() % 2**32
+    np.random.seed(worker_seed)
+    random.seed(worker_seed)
+
+
 def set_random_seed(seed):
     """
     Set random seed for model training or inference.
