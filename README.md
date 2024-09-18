@@ -27,7 +27,7 @@ You can find examples of this template completed for different tasks in other br
 
 - [Image classification](https://github.com/Blinorot/pytorch_project_template/tree/example/image-classification): simple classification problem on [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
 
-- [ASR](todo): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
+- [ASR](https://github.com/Blinorot/pytorch_project_template/tree/example/asr): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn` and beam search for `text_encoder`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
 
 ## Installation
 
