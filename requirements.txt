@@ -1,7 +1,9 @@
 torch==2.2.0
 torchvision==0.17.0
-torchmetrics
-numpy
+torchaudio==2.2.0
+soundfile
+numpy==1.26.4
+torch_audiomentations
 tqdm
 matplotlib
 pandas

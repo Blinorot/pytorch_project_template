@@ -1,21 +1,6 @@
-device: "auto"
-train: # metrics that are calculated during training
-  - _target_: src.metrics.ExampleMetric
-    metric:
-      _target_: torchmetrics.classification.MulticlassAccuracy
-      num_classes: 10
-    device: ${metrics.device}
-    name: "TRAIN_MulticlassAccuracy" # just an example to see difference
+train: [] # metrics that are calculated during training
 inference: # metrics that are calculated during inference (eval)
-  - _target_: src.metrics.ExampleMetric
-    metric:
-      _target_: torchmetrics.classification.MulticlassAccuracy
-      num_classes: 10
-    device: ${metrics.device}
-    name: "MulticlassAccuracy"
-  - _target_: src.metrics.ExampleMetric
-    metric:
-      _target_: torchmetrics.classification.MulticlassAccuracy
-      num_classes: 10
-    device: ${metrics.device}
-    name: "MulticlassAccuracy2.0"
+  - _target_: src.metrics.ArgmaxCERMetric
+    name: "CER_(Argmax)" # it is better to avoid spaces in names
+  - _target_: src.metrics.ArgmaxWERMetric
+    name: "WER_(Argmax)"
