@@ -15,7 +15,10 @@ class CommonVoiceDataset(BaseDataset):
         self._data_dir = ROOT_PATH / "dataset_common_voice"
         self._regex = re.compile("[^a-z ]")
         self._dataset = load_dataset(
-            "common_voice", "en", cache_dir=self._data_dir, split=split
+            "mozilla-foundation/common_voice_11_0",
+            "en",
+            cache_dir=self._data_dir,
+            split=split,
         )
         index = self._get_or_load_index(split)
         super().__init__(index, *args, **kwargs)
