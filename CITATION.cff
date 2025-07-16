@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this template, please cite it as below."
+title: "PyTorch Project Template"
+authors:
+  - family-names: Grinberg
+    given-names: Petr
+    orcid: https://orcid.org/0009-0008-4480-5595
+date-released: 2024-09-01
+url: https://github.com/Blinorot/pytorch_project_template
