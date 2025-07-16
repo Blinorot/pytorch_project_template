@@ -18,6 +18,9 @@
 <a href="https://github.com/Blinorot/pytorch_project_template/blob/main/LICENSE">
    <img src=https://img.shields.io/badge/license-MIT-blue.svg>
 </a>
+<a href="https://github.com/Blinorot/pytorch_project_template/blob/main/CITATION.cff">
+   <img src="https://img.shields.io/badge/cite-this%20repo-purple">
+</a>
 </p>
 
 ## About
@@ -29,6 +32,8 @@ The template utilizes different python-dev techniques to improve code readabilit
 The repository is released as a part of the [HSE DLA course](https://github.com/markovka17/dla), however, can easily be adopted for any DL-task.
 
 This template is the official recommended template for the [EPFL CS-433 ML Course](https://www.epfl.ch/labs/mlo/machine-learning-cs-433/).
+
+> 📖 **If you use this template in your work, please cite this repository or include a reference. Attribution supports the project and encourages continued development.**
 
 ## Tutorials
 
