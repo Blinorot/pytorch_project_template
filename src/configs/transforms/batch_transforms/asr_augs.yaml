@@ -1,0 +1,9 @@
+train:
+  spectrogram:
+    _target_: torch.nn.Sequential
+    _args_:
+    - _target_: src.transforms.spec_augs.TimeMasking
+      time_mask_param: 30
+    - _target_: src.transforms.spec_augs.FrequencyMasking
+      freq_mask_param: 15
+inference: {}

@@ -1,0 +1,16 @@
+train:
+- _target_: src.metrics.ArgmaxCERMetric
+  name: "CER_(Argmax)"
+- _target_: src.metrics.ArgmaxWERMetric
+  name: "WER_(Argmax)"
+inference:
+- _target_: src.metrics.ArgmaxCERMetric
+  name: "CER_(Argmax)"
+- _target_: src.metrics.ArgmaxWERMetric
+  name: "WER_(Argmax)"
+- _target_: src.metrics.BeamSearchCERMetric
+  name: "CER_(BeamSearch)"
+  beam_size: 10
+- _target_: src.metrics.BeamSearchWERMetric
+  name: "WER_(BeamSearch)"
+  beam_size: 10

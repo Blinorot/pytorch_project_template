@@ -1,0 +1,37 @@
+defaults:
+- model: conformer
+- writer: wandb
+- metrics: asr
+- datasets: asr
+- dataloader: asr
+- transforms: asr_augs
+- _self_
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 3e-4
+  weight_decay: 1e-6
+lr_scheduler:
+  _target_: torch.optim.lr_scheduler.OneCycleLR
+  max_lr: 3e-4
+  pct_start: 0.1
+  steps_per_epoch: ${trainer.epoch_len}
+  epochs: ${trainer.n_epochs}
+  anneal_strategy: cos
+loss_function:
+  _target_: src.loss.CTCLossWrapper
+text_encoder:
+  _target_: src.text_encoder.CTCTextEncoder
+trainer:
+  log_step: 50
+  n_epochs: 100
+  epoch_len: 1000 # Conformer needs more steps
+  device_tensors: [ "spectrogram", "text_encoded" ]
+  resume_from: null
+  device: auto
+  override: False
+  monitor: "min val_WER_(Argmax)"
+  save_period: 5
+  early_stop: ${trainer.n_epochs}
+  save_dir: "saved"
+  seed: 42
+  max_grad_norm: 10.0

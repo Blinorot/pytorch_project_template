@@ -1,0 +1,4 @@
+defaults:
+- batch_transforms: asr_augs
+- instance_transforms: asr_augs
+- _self_
