@@ -3,12 +3,6 @@ from string import ascii_lowercase
 
 import torch
 
-# TODO add CTC decode
-# TODO add BPE, LM, Beam Search support
-# Note: think about metrics and encoder
-# The design can be remarkably improved
-# to calculate stuff more efficiently and prettier
-
 
 class CTCTextEncoder:
     EMPTY_TOK = ""
@@ -59,7 +53,53 @@ class CTCTextEncoder:
         return "".join([self.ind2char[int(ind)] for ind in inds]).strip()
 
     def ctc_decode(self, inds) -> str:
-        pass  # TODO
+        res = []
+        last_ind = -1
+        for ind in inds:
+            if ind == last_ind:
+                continue
+            if ind != 0:  # 0 is EMPTY_TOK
+                res.append(self.ind2char[int(ind)])
+            last_ind = ind
+        return "".join(res)
+
+    def ctc_beam_search(self, probs_for_beam, beam_size=10) -> list:
+        beam = {("", self.EMPTY_TOK): (0.0, 1.0)}
+
+        for probs in probs_for_beam:
+            new_beam = {}
+            for i, p in enumerate(probs):
+                p = p.item()
+                if p == 0:
+                    continue
+
+                char = self.ind2char[i]
+                for (text, last_char), (p_nb, p_b) in beam.items():
+                    if char == self.EMPTY_TOK:
+                        n_text, n_last = text, char
+                        p_nb_new, p_b_new = new_beam.get((n_text, n_last), (0.0, 0.0))
+                        new_beam[(n_text, n_last)] = (p_nb_new, p_b_new + p * (p_nb + p_b))
+                    elif char == last_char:
+                        n_text, n_last = text, char
+                        p_nb_new, p_b_new = new_beam.get((n_text, n_last), (0.0, 0.0))
+                        new_beam[(n_text, n_last)] = (p_nb_new + p * p_nb, p_b_new)
+
+                        p_nb_new, p_b_new = new_beam.get((n_text, n_last), (0.0, 0.0))
+                        new_beam[(n_text, n_last)] = (p_nb_new + p * p_b, p_b_new)
+                    else:
+                        n_text, n_last = text + char, char
+                        p_nb_new, p_b_new = new_beam.get((n_text, n_last), (0.0, 0.0))
+                        new_beam[(n_text, n_last)] = (p_nb_new + p * (p_nb + p_b), p_b_new)
+
+            beam = dict(
+                sorted(new_beam.items(), key=lambda x: sum(x[1]), reverse=True)[:beam_size]
+            )
+
+        final_beam = {}
+        for (text, last_char), (p_nb, p_b) in beam.items():
+            final_beam[text] = final_beam.get(text, 0.0) + p_nb + p_b
+
+        return sorted(final_beam.items(), key=lambda x: x[1], reverse=True)
 
     @staticmethod
     def normalize_text(text: str):
