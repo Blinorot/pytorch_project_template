@@ -103,28 +103,18 @@ class Inferencer(BaseTrainer):
         Run batch through the model, compute metrics, and
         save predictions to disk.
 
-        Save directory is defined by save_path in the inference
-        config and current partition.
-
         Args:
             batch_idx (int): the index of the current batch.
             batch (dict): dict-based batch containing the data from
                 the dataloader.
             metrics (MetricTracker): MetricTracker object that computes
-                and aggregates the metrics. The metrics depend on the type
-                of the partition (train or inference).
-            part (str): name of the partition. Used to define proper saving
-                directory.
+                and aggregates the metrics.
+            part (str): name of the partition.
         Returns:
-            batch (dict): dict-based batch containing the data from
-                the dataloader (possibly transformed via batch transform)
-                and model outputs.
+            batch (dict): batch with model outputs.
         """
-        # TODO change inference logic so it suits ASR assignment
-        # and task pipeline
-
         batch = self.move_batch_to_device(batch)
-        batch = self.transform_batch(batch)  # transform batch on device -- faster
+        batch = self.transform_batch(batch)
 
         outputs = self.model(**batch)
         batch.update(outputs)
@@ -133,29 +123,23 @@ class Inferencer(BaseTrainer):
             for met in self.metrics["inference"]:
                 metrics.update(met.name, met(**batch))
 
-        # Some saving logic. This is an example
-        # Use if you need to save predictions on disk
+        if self.save_path is not None:
+            # Save predictions as text files
+            log_probs = batch["log_probs"].cpu()
+            log_probs_length = batch["log_probs_length"].numpy()
+            audio_paths = batch["audio_path"]
 
-        batch_size = batch["logits"].shape[0]
-        current_id = batch_idx * batch_size
+            # We can use beam search if specified in config, but argmax is faster
+            # Let's use argmax for now, or check config
+            argmax_inds = log_probs.argmax(-1).numpy()
 
-        for i in range(batch_size):
-            # clone because of
-            # https://github.com/pytorch/pytorch/issues/1995
-            logits = batch["logits"][i].clone()
-            label = batch["labels"][i].clone()
-            pred_label = logits.argmax(dim=-1)
-
-            output_id = current_id + i
-
-            output = {
-                "pred_label": pred_label,
-                "label": label,
-            }
-
-            if self.save_path is not None:
-                # you can use safetensors or other lib here
-                torch.save(output, self.save_path / part / f"output_{output_id}.pth")
+            for i in range(len(audio_paths)):
+                inds = argmax_inds[i][: int(log_probs_length[i])]
+                pred_text = self.text_encoder.ctc_decode(inds)
+                
+                audio_name = Path(audio_paths[i]).stem
+                with (self.save_path / part / f"{audio_name}.txt").open("w") as f:
+                    f.write(pred_text)
 
         return batch
 
