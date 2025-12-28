@@ -1,9 +1,17 @@
 train:
-  spectrogram:
+  audio:
+    # Считаем спектрограмму и маскируем на GPU
     _target_: torch.nn.Sequential
     _args_:
+    - _target_: torchaudio.transforms.MelSpectrogram
+      sample_rate: 16000
+      n_mels: 128
     - _target_: src.transforms.spec_augs.TimeMasking
       time_mask_param: 30
     - _target_: src.transforms.spec_augs.FrequencyMasking
       freq_mask_param: 15
-inference: {}
+inference:
+  audio:
+    _target_: torchaudio.transforms.MelSpectrogram
+    sample_rate: 16000
+    n_mels: 128

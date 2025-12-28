@@ -116,9 +116,9 @@ class Conformer(nn.Module):
         x = spectrogram.unsqueeze(1)
         x = self.subsampling(x) # (B, D, F/4, T/4)
         
-        B, D, F, T = x.size()
-        x = x.permute(0, 3, 1, 2).contiguous() # (B, T, D, F)
-        x = x.view(B, T, D * F)
+        B, D, Freq, T = x.size()
+        x = x.permute(0, 3, 1, 2).contiguous() # (B, T, D, Freq)
+        x = x.view(B, T, D * Freq)
         
         x = self.input_proj(x)
         x = self.pos_encoding(x)

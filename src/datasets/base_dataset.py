@@ -2,6 +2,7 @@ import logging
 import random
 
 import numpy as np
+import soundfile as sf
 import torch
 import torchaudio
 from torch.utils.data import Dataset
@@ -64,39 +65,19 @@ class BaseDataset(Dataset):
         self.instance_transforms = instance_transforms
 
     def __getitem__(self, ind):
-        """
-        Get element from the index, preprocess it, and combine it
-        into a dict.
-
-        Notice that the choice of key names is defined by the template user.
-        However, they should be consistent across dataset getitem, collate_fn,
-        loss_function forward method, and model forward method.
-
-        Args:
-            ind (int): index in the self.index list.
-        Returns:
-            instance_data (dict): dict, containing instance
-                (a single dataset element).
-        """
         data_dict = self._index[ind]
         audio_path = data_dict["path"]
         audio = self.load_audio(audio_path)
         text = data_dict["text"]
         text_encoded = self.text_encoder.encode(text)
 
-        spectrogram = self.get_spectrogram(audio)
-
         instance_data = {
             "audio": audio,
-            "spectrogram": spectrogram,
             "text": text,
             "text_encoded": text_encoded,
             "audio_path": audio_path,
         }
 
-        # TODO think of how to apply wave augs before calculating spectrogram
-        # Note: you may want to preserve both audio in time domain and
-        # in time-frequency domain for logging
         instance_data = self.preprocess_data(instance_data)
 
         return instance_data
@@ -108,8 +89,16 @@ class BaseDataset(Dataset):
         return len(self._index)
 
     def load_audio(self, path):
-        audio_tensor, sr = torchaudio.load(path)
-        audio_tensor = audio_tensor[0:1, :]  # remove all channels but the first
+
+        audio_array, sr = sf.read(path)
+        audio_tensor = torch.from_numpy(audio_array).float()
+        
+        if audio_tensor.dim() == 1:
+            audio_tensor = audio_tensor.unsqueeze(0)
+        else:
+            audio_tensor = audio_tensor.transpose(0, 1)
+
+        audio_tensor = audio_tensor[0:1, :]
         target_sr = self.target_sr
         if sr != target_sr:
             audio_tensor = torchaudio.functional.resample(audio_tensor, sr, target_sr)

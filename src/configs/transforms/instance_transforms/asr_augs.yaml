@@ -1,8 +1,5 @@
 train:
-  get_spectrogram:
-    _target_: torchaudio.transforms.MelSpectrogram
-    sample_rate: 16000
-    n_mels: 128
+  get_spectrogram: null # Убираем отсюда
   audio:
     _target_: torchvision.transforms.v2.Compose
     transforms:
@@ -10,11 +7,5 @@ train:
     - _target_: src.transforms.wav_augs.WhiteNoise
       min_snr_db: 15
       max_snr_db: 35
-    - _target_: src.transforms.wav_augs.PitchShift
-      sample_rate: 16000
-      n_steps_range: [ -2, 2 ]
 inference:
-  get_spectrogram:
-    _target_: torchaudio.transforms.MelSpectrogram
-    sample_rate: 16000
-    n_mels: 128
+  get_spectrogram: null # Убираем отсюда

@@ -1,3 +1,5 @@
+import torch
+from omegaconf import ListConfig
 from itertools import repeat
 
 from hydra.utils import instantiate
@@ -68,14 +70,26 @@ def get_dataloaders(config, text_encoder, device):
     dataloaders = {}
     for dataset_partition in config.datasets.keys():
         # dataset partition init
-        dataset = instantiate(
-            config.datasets[dataset_partition], text_encoder=text_encoder
-        )  # instance transforms are defined inside
+        dataset_configs = config.datasets[dataset_partition]
+        if isinstance(dataset_configs, (list, ListConfig)):
+            datasets = [
+                instantiate(dict_config, text_encoder=text_encoder)
+                for dict_config in dataset_configs
+            ]
+        else:
+            datasets = [instantiate(dataset_configs, text_encoder=text_encoder)]
 
-        assert config.dataloader.batch_size <= len(dataset), (
-            f"The batch size ({config.dataloader.batch_size}) cannot "
-            f"be larger than the dataset length ({len(dataset)})"
-        )
+        for dataset in datasets:
+            assert config.dataloader.batch_size <= len(dataset), (
+                f"The batch size ({config.dataloader.batch_size}) cannot "
+                f"be larger than the dataset length ({len(dataset)}) "
+                f"in partition '{dataset_partition}'"
+            )
+
+        if len(datasets) > 1:
+            dataset = torch.utils.data.ConcatDataset(datasets)
+        else:
+            dataset = datasets[0]
 
         partition_dataloader = instantiate(
             config.dataloader,

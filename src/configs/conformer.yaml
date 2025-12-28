@@ -22,13 +22,13 @@ loss_function:
 text_encoder:
   _target_: src.text_encoder.CTCTextEncoder
 trainer:
-  log_step: 50
+  log_step: 200
   n_epochs: 100
-  epoch_len: 1000 # Conformer needs more steps
-  device_tensors: [ "spectrogram", "text_encoded" ]
+  epoch_len: null
+  device_tensors: [ "audio", "text_encoded", "text_encoded_length" ]
   resume_from: null
-  device: auto
-  override: False
+  device: cuda
+  override: True
   monitor: "min val_WER_(Argmax)"
   save_period: 5
   early_stop: ${trainer.n_epochs}

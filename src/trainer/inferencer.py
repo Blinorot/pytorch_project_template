@@ -1,4 +1,5 @@
 import torch
+from pathlib import Path
 from tqdm.auto import tqdm
 
 from src.metrics.tracker import MetricTracker
@@ -116,8 +117,23 @@ class Inferencer(BaseTrainer):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)
 
-        outputs = self.model(**batch)
-        batch.update(outputs)
+        if "audio" in batch and isinstance(batch["audio"], torch.Tensor):
+            spec = batch["audio"]
+            if spec.dim() == 4:
+                spec = spec.squeeze(1)
+            batch["spectrogram"] = spec
+            
+            if "audio_length" in batch:
+                batch["spectrogram_length"] = (batch["audio_length"] // 200) + 1
+                batch["spectrogram_length"] = batch["spectrogram_length"].to(self.device)
+            else:
+                batch["spectrogram_length"] = torch.full(
+                    (spec.size(0),), spec.size(-1), device=spec.device, dtype=torch.long
+                )
+
+        with torch.amp.autocast(dtype=torch.bfloat16, device_type="cuda"):
+            outputs = self.model(**batch)
+            batch.update(outputs)
 
         if metrics is not None:
             for met in self.metrics["inference"]:
@@ -125,12 +141,11 @@ class Inferencer(BaseTrainer):
 
         if self.save_path is not None:
             # Save predictions as text files
-            log_probs = batch["log_probs"].cpu()
-            log_probs_length = batch["log_probs_length"].numpy()
+            log_probs = batch["log_probs"].detach().cpu()
+            log_probs_length = batch["log_probs_length"].detach().cpu().numpy()
             audio_paths = batch["audio_path"]
 
             # We can use beam search if specified in config, but argmax is faster
-            # Let's use argmax for now, or check config
             argmax_inds = log_probs.argmax(-1).numpy()
 
             for i in range(len(audio_paths)):

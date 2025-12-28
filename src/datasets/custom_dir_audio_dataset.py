@@ -1,4 +1,4 @@
-import torchaudio
+import soundfile as sf
 from pathlib import Path
 
 from src.datasets.base_dataset import BaseDataset
@@ -31,9 +31,8 @@ class CustomDirAudioDataset(BaseDataset):
                         with transc_path.open() as f:
                             entry["text"] = f.read().strip().lower()
 
-
-                t_info = torchaudio.info(str(path))
-                entry["audio_len"] = t_info.num_frames / t_info.sample_rate
+                info = sf.info(str(path))
+                entry["audio_len"] = info.frames / info.samplerate
 
             if "path" in entry:
                 data.append(entry)

@@ -20,8 +20,9 @@ class ArgmaxWERMetric(BaseMetric):
         self, log_probs: Tensor, log_probs_length: Tensor, text: List[str], **kwargs
     ):
         wers = []
-        predictions = torch.argmax(log_probs.cpu(), dim=-1).numpy()
-        lengths = log_probs_length.detach().numpy()
+        log_probs_detached = log_probs.detach().cpu()
+        predictions = torch.argmax(log_probs_detached, dim=-1).numpy()
+        lengths = log_probs_length.detach().cpu().numpy()
         for log_prob_vec, length, target_text in zip(predictions, lengths, text):
             target_text = self.text_encoder.normalize_text(target_text)
             pred_text = self.text_encoder.ctc_decode(log_prob_vec[:length])
@@ -39,8 +40,9 @@ class BeamSearchWERMetric(BaseMetric):
         self, log_probs: Tensor, log_probs_length: Tensor, text: List[str], **kwargs
     ):
         wers = []
-        probs = torch.exp(log_probs.cpu())
-        lengths = log_probs_length.detach().numpy()
+        log_probs_detached = log_probs.detach().cpu()
+        probs = torch.exp(log_probs_detached)
+        lengths = log_probs_length.detach().cpu().numpy()
         for prob_vec, length, target_text in zip(probs, lengths, text):
             target_text = self.text_encoder.normalize_text(target_text)
             beam_results = self.text_encoder.ctc_beam_search(

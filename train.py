@@ -32,6 +32,8 @@ def main(config):
         device = "cuda" if torch.cuda.is_available() else "cpu"
     else:
         device = config.trainer.device
+    
+    logger.info(f"Using device: {device}")
 
     # setup text_encoder
     text_encoder = instantiate(config.text_encoder)
@@ -58,11 +60,21 @@ def main(config):
     # build optimizer, learning rate scheduler
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = instantiate(config.optimizer, params=trainable_params)
-    lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
 
     # epoch_len = number of iterations for iteration-based training
     # epoch_len = None or len(dataloader) for epoch-based training
     epoch_len = config.trainer.get("epoch_len")
+    if epoch_len is None:
+        epoch_len = len(dataloaders["train"])
+
+    # setup lr_scheduler
+    # if steps_per_epoch is None, we use calculated epoch_len
+    if config.lr_scheduler.get("steps_per_epoch") is None:
+        lr_scheduler = instantiate(
+            config.lr_scheduler, optimizer=optimizer, steps_per_epoch=epoch_len
+        )
+    else:
+        lr_scheduler = instantiate(config.lr_scheduler, optimizer=optimizer)
 
     trainer = Trainer(
         model=model,
