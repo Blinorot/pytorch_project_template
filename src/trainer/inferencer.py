@@ -131,7 +131,10 @@ class Inferencer(BaseTrainer):
                     (spec.size(0),), spec.size(-1), device=spec.device, dtype=torch.long
                 )
 
-        with torch.amp.autocast(dtype=torch.bfloat16, device_type="cuda"):
+        # на T4 не поддержан bf16 и мы грубо в fp16 заинферим (хотя может стоит в fp32, чтобы случайно не вылететь за границы) 
+        dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() else torch.float16
+
+        with torch.amp.autocast(dtype=dtype, device_type="cuda"):
             outputs = self.model(**batch)
             batch.update(outputs)
 
