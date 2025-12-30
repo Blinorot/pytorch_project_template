@@ -11,6 +11,8 @@ wandb
 comet_ml
 hydra-core
 tokenizers
+huggingface_hub
+transformers
 
 black
 isort

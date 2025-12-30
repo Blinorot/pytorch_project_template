@@ -1,0 +1,20 @@
+defaults:
+- model: conformer
+- metrics: asr
+- datasets: asr_test
+- dataloader: asr
+- transforms: asr_augs
+- _self_
+inferencer:
+  device_tensors: [ "audio", "text_encoded", "text_encoded_length" ]
+  device: auto
+  save_path: "conformer_bpe_other_rescored"
+  seed: 42
+  from_pretrained: "saved/ConformerV5_bs_16_bpe_1k_other/model_best.pth"
+text_encoder:
+  _target_: src.text_encoder.CTCTextEncoder
+  tokenizer_path: "src/text_encoder/bpe_tokenizer.json"
+  lm_hf_model: "distilgpt2"
+  # lm_hf_model: null
+  alpha: 0.4
+  beta: 0.1

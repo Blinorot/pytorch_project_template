@@ -10,7 +10,7 @@ inference:
   name: "WER_(Argmax)"
 - _target_: src.metrics.BeamSearchCERMetric
   name: "CER_(BeamSearch)"
-  beam_size: 5
+  beam_size: 20
 - _target_: src.metrics.BeamSearchWERMetric
   name: "WER_(BeamSearch)"
-  beam_size: 5
+  beam_size: 20
