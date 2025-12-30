@@ -1,0 +1,11 @@
+train:
+  _target_: src.datasets.LibrispeechDataset
+  part: train-other-500
+val:
+  _target_: src.datasets.LibrispeechDataset
+  part: dev-clean
+  limit: 100
+val-other:
+  _target_: src.datasets.LibrispeechDataset
+  part: dev-other
+  limit: 100

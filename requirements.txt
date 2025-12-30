@@ -10,6 +10,7 @@ pandas
 wandb
 comet_ml
 hydra-core
+tokenizers
 
 black
 isort
