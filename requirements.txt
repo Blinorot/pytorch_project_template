@@ -3,7 +3,8 @@ torchvision==0.17.0
 torchaudio==2.2.0
 soundfile
 numpy==1.26.4
-torch_audiomentations
+transformers==4.49.0
+wget
 tqdm
 matplotlib
 pandas
