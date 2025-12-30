@@ -14,7 +14,6 @@
 2.  Загрузка весов:
     Используйте скрипт download_weights.py (нужно подставить GDrive ID модели и токенайзера):
     ```
-    cd asr/ASR_HW
     python download_weights.py --model_id YOUR_ID --tokenizer_id YOUR_ID
     ```
     
