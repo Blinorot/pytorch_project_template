@@ -1,79 +1,73 @@
-# Automatic Speech Recognition (ASR) with PyTorch
+# Автоматическое распознавание речи (ASR)
 
-<p align="center">
-  <a href="#about">About</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#how-to-use">How To Use</a> •
-  <a href="#credits">Credits</a> •
-  <a href="#license">License</a>
-</p>
+Этот репозиторий содержит реализацию системы распознавания речи на базе архитектуры Conformer-CTC, выполненную в рамках домашнего задания курса DLA HSE.
 
-## About
+## Финальный отчет
 
-This repository contains a template for solving ASR task with PyTorch. This template branch is a part of the [HSE DLA course](https://github.com/markovka17/dla) ASR homework. Some parts of the code are missing (or do not follow the most optimal design choices...) and students are required to fill these parts themselves (as well as writing their own models, etc.).
-
-See the task assignment [here](https://github.com/markovka17/dla/tree/2024/hw1_asr).
-
-## Installation
-
-Follow these steps to install the project:
-
-0. (Optional) Create and activate new environment using [`conda`](https://conda.io/projects/conda/en/latest/user-guide/getting-started.html) or `venv` ([`+pyenv`](https://github.com/pyenv/pyenv)).
-
-   a. `conda` version:
-
-   ```bash
-   # create env
-   conda create -n project_env python=PYTHON_VERSION
-
-   # activate env
-   conda activate project_env
+### 1. Воспроизводимость
+Для запуска инференса или обучения:
+1.  Установка зависимостей:
    ```
-
-   b. `venv` (`+pyenv`) version:
-
-   ```bash
-   # create env
-   ~/.pyenv/versions/PYTHON_VERSION/bin/python3 -m venv project_env
-
-   # alternatively, using default python version
-   python3 -m venv project_env
-
-   # activate env
-   source project_env/bin/activate
+    pip install -r requirements.txt
    ```
+    
+2.  Загрузка весов:
+    Используйте скрипт download_weights.py (нужно подставить GDrive ID модели и токенайзера):
+    ```
+    cd asr/ASR_HW
+    python download_weights.py --model_id YOUR_ID --tokenizer_id YOUR_ID
+    ```
+    
+3.  Обучение BPE (опционально можно и без него):
+    ```
+    python train_bpe.py --data_path /path/to/LibriSpeech --vocab_size 1000
+    ```
+    
 
-1. Install all required packages
+### 2. Эволюция модели и анализ экспериментов
+-   Conformer на `train-clean-100`: Базовая модель достигала ~0.3 WER. Наблюдалось переобучение из-за малого объема чистых данных, то есть в моменте трейновые данные почти идеально разбирались моделью, 
+    а валидация была намного выше, но при этом всем постепенно падала
+-   BPE Токенизация: 
+    -   Попытка с BPE на 10k словаре и стандартным пре-токенайзером сработал в начале очень хорошо, так как WER и CER резко пошли вниз без перегиба сверху, но при этом они стали на полку(
+    -   Переход на 100 словарь и Metaspace пре-токенайзер (который корректно обрабатывает пробелы) позволил модели выучить субсимвольные зависимости, ну и в целом лосс пободрее пошел ниже, чем было без BPE-энкодера.
+-   Дальше я решил не тянуть одно существо за одно место и взял полный шумный датасет `train-other-500`, чтоб точно BPEшечка нормально выучилась и видно, что он пошел гораздно ниже, и я еще добавил валидацию на `dev-other`. 
+    Его можно было выучить прям очень круто, но я запускал локально и на ночь ставить не хотел, так как он мешает спать от шума(( Но при всем при этом я получал с LM на декодинге и BS=5 WER 0.22-0.23 на `test-other`.
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 3. Результаты
+Итоговые метрики (Argmax vs Beam Search vs Transformer LM Rescoring).
 
-2. Install `pre-commit`:
-   ```bash
-   pre-commit install
-   ```
+| Датасет | Метрика | Argmax | Beam Search (BS=10) | BS + LM Rescoring (BS=20) |
+|---|---|---|---|---|
+| test-clean | WER | 12.16% | 10.83% | 10.17% |
+| test-clean | CER | 4.81% | 4.28% | 4.11% |
+| test-other | WER | 25.80% | 23.88% | 22.81% |
+| test-other | CER | 12.15% | 11.44% | 11.06% |
 
-## How To Use
+*Примечание: Использование distilgpt2 для рескоринга гипотез в Beam Search дает наилучший результат.*
 
-To train a model, run the following command:
+### 4. Реализованные бонусы
+-   BPE Токенизатор (+10): Используется библиотека tokenizers с Metaspace.
+-   Языковая модель (+5): Интегрирован рескоринг через distilgpt2 от Hugging Face. Пробовал в начале kenlm, но он у меня на винде не завелся.
 
-```bash
-python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+### 5. Особенности реализации и сложности
+-   Mixed Precision: Использован bfloat16.
+-   Data Loading: Была проблема, что на винде работал у меня только num_workers: 0. Я решил поставить его в 8 и все было круто: у меня утилизация карты 80%, но после 5к шагов она падает до 35%. Честно так и не разобрался какого фига.
+
+### 6. Графики (CometML)
+   Весь отчет обучения есть [здесь](https://www.comet.com/tiltovskii/pytorch-template-asr-example/view/new/panels) 
+
+   Вот этот график круче всех, где видно, что на валидации лучше всего падает BPE 1k на train-500-other
+   ![alt text](images/image.png)
+
+---
+## Инструкции шаблона
+
+### Обучение
+```
+python3 train.py -cn=conformer
 ```
 
-Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
-
-To run inference (evaluate the model or save predictions):
-
-```bash
-python3 inference.py HYDRA_CONFIG_ARGUMENTS
+### Инференс
 ```
-
-## Credits
-
-This repository is based on a [PyTorch Project Template](https://github.com/Blinorot/pytorch_project_template).
-
-## License
-
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
+python3 inference.py -cn=conformer_bpe_inference datasets=asr writer=cometml writer.run_name=<Your run name>
+```
