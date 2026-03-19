@@ -142,7 +142,7 @@ def setup_saving_and_logging(config):
     """
     Initialize the logger, writer, and saving directory.
     The saving directory is defined by the run_name and save_dir
-    arguments of config.writer and config.trainer, respectfully.
+    arguments of config.writer and config.trainer, respectively.
 
     Args:
         config (DictConfig): hydra config for the current experiment.
