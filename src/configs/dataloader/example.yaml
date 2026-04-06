@@ -1,4 +1,12 @@
-_target_: torch.utils.data.DataLoader
-batch_size: 10
-num_workers: 2
-pin_memory: True
+train:
+  _target_: torch.utils.data.DataLoader
+  batch_size: 10
+  num_workers: 2
+  pin_memory: True
+  raise_error_for_small_datasets: False # if True, raises error when len(dataset) < batch_size
+inference:
+  _target_: torch.utils.data.DataLoader
+  batch_size: 10
+  num_workers: 2
+  pin_memory: True
+  raise_error_for_small_datasets: False

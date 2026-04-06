@@ -1,13 +1,14 @@
 from abc import abstractmethod
 
 import torch
+from huggingface_hub import snapshot_download, upload_folder
 from numpy import inf
-from torch.nn.utils import clip_grad_norm_
+from omegaconf import OmegaConf
 from tqdm.auto import tqdm
 
 from src.datasets.data_utils import inf_loop
 from src.metrics.tracker import MetricTracker
-from src.utils.io_utils import ROOT_PATH
+from src.utils.io_utils import ROOT_PATH, read_json, write_json
 
 
 class BaseTrainer:
@@ -23,6 +24,7 @@ class BaseTrainer:
         optimizer,
         lr_scheduler,
         config,
+        accelerator,
         device,
         dataloaders,
         logger,
@@ -42,7 +44,9 @@ class BaseTrainer:
             lr_scheduler (LRScheduler): learning rate scheduler for the
                 optimizer.
             config (DictConfig): experiment config containing training config.
-            device (str): device for tensors and model.
+            accelerator (Accelerator): accelerator for handing processes and GPUs.
+            device (str | torch.device): device for tensors/model. Must be the same as
+                accelerator.device.
             dataloaders (dict[DataLoader]): dataloaders for different
                 sets of data.
             logger (Logger): logger that logs output.
@@ -60,6 +64,7 @@ class BaseTrainer:
         self.config = config
         self.cfg_trainer = self.config.trainer
 
+        self.accelerator = accelerator
         self.device = device
         self.skip_oom = skip_oom
 
@@ -74,25 +79,28 @@ class BaseTrainer:
 
         # define dataloaders
         self.train_dataloader = dataloaders["train"]
-        if epoch_len is None:
-            # epoch-based training
-            self.epoch_len = len(self.train_dataloader)
-        else:
-            # iteration-based training
-            self.train_dataloader = inf_loop(self.train_dataloader)
-            self.epoch_len = epoch_len
-
         self.evaluation_dataloaders = {
             k: v for k, v in dataloaders.items() if k != "train"
         }
+        # set after resume to properly restore train dataloader state
+        if epoch_len is None:
+            # epoch-based training
+            grad_accum_steps = self.config.trainer.gradient_accumulation_steps
+            self.epoch_len = len(self.train_dataloader) // grad_accum_steps
+        else:
+            # iteration-based training
+            self.epoch_len = epoch_len
 
         # define epochs
         self._last_epoch = 0  # required for saving on interruption
         self.start_epoch = 1
         self.epochs = self.cfg_trainer.n_epochs
+        self.global_step = -1  # total number of steps across all epochs
+        self.epoch_step = -1  # number of steps in the current epoch
+        self.seen_dataloader_batches = 0
+        self.train_dataloader_length = len(self.train_dataloader)
 
         # configuration to monitor model performance and save best
-
         self.save_period = (
             self.cfg_trainer.save_period
         )  # checkpoint each save_period epochs
@@ -116,18 +124,24 @@ class BaseTrainer:
         self.writer = writer
 
         # define metrics
-        self.metrics = metrics
-        self.train_metrics = MetricTracker(
-            *self.config.writer.loss_names,
-            "grad_norm",
-            *[m.name for m in self.metrics["train"]],
-            writer=self.writer,
-        )
-        self.evaluation_metrics = MetricTracker(
-            *self.config.writer.loss_names,
-            *[m.name for m in self.metrics["inference"]],
-            writer=self.writer,
-        )
+        if self.accelerator.is_main_process:
+            self.metrics = metrics
+
+            self.train_metrics = MetricTracker(
+                *self.config.writer.loss_names,
+                "grad_norm",
+                *[m.name for m in self.metrics["train"]],
+                writer=self.writer,
+            )
+            self.evaluation_metrics = MetricTracker(
+                *self.config.writer.loss_names,
+                *[m.name for m in self.metrics["inference"]],
+                writer=self.writer,
+            )
+        else:
+            self.metrics = None
+            self.train_metrics = None
+            self.evaluation_metrics = None
 
         # define checkpoint dir and init everything if required
 
@@ -135,12 +149,23 @@ class BaseTrainer:
             ROOT_PATH / config.trainer.save_dir / config.writer.run_name
         )
 
+        skipped_dataloader = None
         if config.trainer.get("resume_from") is not None:
-            resume_path = self.checkpoint_dir / config.trainer.resume_from
-            self._resume_checkpoint(resume_path)
+            if config.trainer.resume_from == "huggingface":
+                resume_path = "huggingface"
+            else:
+                resume_path = self.checkpoint_dir / config.trainer.resume_from
+            skipped_dataloader = self._resume_checkpoint(resume_path)
 
-        if config.trainer.get("from_pretrained") is not None:
-            self._from_pretrained(config.trainer.get("from_pretrained"))
+        # set after resume to properly restore the train dataloader state
+        self.train_dataloader = inf_loop(
+            skipped_dataloader=skipped_dataloader,  # first yield from this once
+            main_dataloader=self.train_dataloader,  # then from this in inf loop
+        )
+        # note that we can do inf_loop even for the epoch-based training,
+        # as the epoch length is controlled by the epoch_len always,
+        # which makes inf_loop equivalent to re-iterating over
+        # the dataloader each epoch
 
     def train(self):
         """
@@ -149,8 +174,9 @@ class BaseTrainer:
         try:
             self._train_process()
         except KeyboardInterrupt as e:
-            self.logger.info("Saving model on keyboard interrupt")
-            self._save_checkpoint(self._last_epoch, save_best=False)
+            if self.accelerator.is_main_process:
+                self.logger.info("Saving model on keyboard interrupt")
+                self._save_checkpoint(save_best=False)
             raise e
 
     def _train_process(self):
@@ -165,6 +191,7 @@ class BaseTrainer:
         for epoch in range(self.start_epoch, self.epochs + 1):
             self._last_epoch = epoch
             result = self._train_epoch(epoch)
+            self.epoch_step = -1
 
             # save logged information into logs dict
             logs = {"epoch": epoch}
@@ -172,7 +199,8 @@ class BaseTrainer:
 
             # print logged information to the screen
             for key, value in logs.items():
-                self.logger.info(f"    {key:15s}: {value}")
+                if self.accelerator.is_main_process:
+                    self.logger.info(f"    {key:15s}: {value}")
 
             # evaluate model performance according to configured metric,
             # save best checkpoint as model_best
@@ -181,7 +209,7 @@ class BaseTrainer:
             )
 
             if epoch % self.save_period == 0 or best:
-                self._save_checkpoint(epoch, save_best=best, only_best=True)
+                self._save_checkpoint(save_best=best, only_best=True)
 
             if stop_process:  # early_stop
                 break
@@ -199,53 +227,95 @@ class BaseTrainer:
         """
         self.is_train = True
         self.model.train()
-        self.train_metrics.reset()
-        self.writer.set_step((epoch - 1) * self.epoch_len)
-        self.writer.add_scalar("epoch", epoch)
-        for batch_idx, batch in enumerate(
-            tqdm(self.train_dataloader, desc="train", total=self.epoch_len)
-        ):
+        if self.accelerator.is_main_process:
+            self.train_metrics.reset()
+            self.writer.set_step((epoch - 1) * self.epoch_len)
+            self.writer.add_scalar("epoch", epoch)
+            last_train_metrics = {}
+
+        if self.accelerator.is_main_process:
+            pbar = tqdm(total=self.epoch_len, desc="train")
+
+        for batch in self.train_dataloader:
             try:
-                batch = self.process_batch(
+                batch, did_optimizer_step, grad_norm = self.process_batch(
                     batch,
-                    metrics=self.train_metrics,
                 )
             except torch.cuda.OutOfMemoryError as e:
                 if self.skip_oom:
-                    self.logger.warning("OOM on batch. Skipping batch.")
-                    torch.cuda.empty_cache()  # free some memory
+                    if self.accelerator.is_main_process:
+                        self.logger.warning("OOM on batch. Skipping batch.")
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()  # free some memory
                     continue
                 else:
                     raise e
 
-            self.train_metrics.update("grad_norm", self._get_grad_norm())
+            # control the inner dataloader state
+            self.seen_dataloader_batches = self.seen_dataloader_batches + 1
+            self.seen_dataloader_batches = (
+                self.seen_dataloader_batches % self.train_dataloader_length
+            )
 
-            # log current results
-            if batch_idx % self.log_step == 0:
-                self.writer.set_step((epoch - 1) * self.epoch_len + batch_idx)
-                self.logger.debug(
-                    "Train Epoch: {} {} Loss: {:.6f}".format(
-                        epoch, self._progress(batch_idx), batch["loss"].item()
+            if did_optimizer_step:
+                self.global_step += 1
+                self.epoch_step += 1
+
+                if self.accelerator.is_main_process:
+                    pbar.update(1)
+                    pbar.set_postfix(
+                        {
+                            "last_loss": batch["loss"].item(),
+                            "grad_norm": grad_norm,
+                            "lr": self.lr_scheduler.get_last_lr()[0],
+                            "global_step": self.global_step,
+                        }
                     )
-                )
-                self.writer.add_scalar(
-                    "learning rate", self.lr_scheduler.get_last_lr()[0]
-                )
-                self._log_scalars(self.train_metrics)
-                self._log_batch(batch_idx, batch)
-                # we don't want to reset train metrics at the start of every epoch
-                # because we are interested in recent train metrics
-                last_train_metrics = self.train_metrics.result()
-                self.train_metrics.reset()
-            if batch_idx + 1 >= self.epoch_len:
+
+                # log current results
+                if self.epoch_step % self.log_step == 0:
+                    # gathering must be called on all processes to avoid deadlock
+                    gathered_batch = self._gather_batch_for_metrics(batch)
+
+                    if self.accelerator.is_main_process:
+                        # compute metrics
+                        gathered_loss = self._update_metrics(
+                            gathered_batch, self.train_metrics
+                        )
+                        self.train_metrics.update("grad_norm", grad_norm)
+
+                        self.writer.set_step(
+                            (epoch - 1) * self.epoch_len + self.epoch_step
+                        )
+                        self.logger.debug(
+                            "Train Epoch: {} {} Loss: {:.6f}".format(
+                                epoch, self._progress(self.epoch_step), gathered_loss
+                            )
+                        )
+                        self.writer.add_scalar(
+                            "learning rate", self.lr_scheduler.get_last_lr()[0]
+                        )
+                        self._log_scalars(self.train_metrics)
+                        self._log_batch(self.epoch_step, batch)
+                        # we don't want to reset train metrics at the start of every epoch
+                        # because we are interested in recent train metrics
+                        last_train_metrics = self.train_metrics.result()
+                        self.train_metrics.reset()
+            if self.epoch_step + 1 >= self.epoch_len:
                 break
 
-        logs = last_train_metrics
+        logs = {}
+        if self.accelerator.is_main_process:
+            logs = last_train_metrics
+            pbar.close()
 
         # Run val/test
         for part, dataloader in self.evaluation_dataloaders.items():
             val_logs = self._evaluation_epoch(epoch, part, dataloader)
-            logs.update(**{f"{part}_{name}": value for name, value in val_logs.items()})
+            if self.accelerator.is_main_process:
+                logs.update(
+                    **{f"{part}_{name}": value for name, value in val_logs.items()}
+                )
 
         return logs
 
@@ -262,24 +332,97 @@ class BaseTrainer:
         """
         self.is_train = False
         self.model.eval()
-        self.evaluation_metrics.reset()
+        if self.accelerator.is_main_process:
+            self.evaluation_metrics.reset()
         with torch.no_grad():
-            for batch_idx, batch in tqdm(
-                enumerate(dataloader),
-                desc=part,
-                total=len(dataloader),
-            ):
-                batch = self.process_batch(
-                    batch,
-                    metrics=self.evaluation_metrics,
-                )
-            self.writer.set_step(epoch * self.epoch_len, part)
-            self._log_scalars(self.evaluation_metrics)
-            self._log_batch(
-                batch_idx, batch, part
-            )  # log only the last batch during inference
+            loader_iterator = enumerate(dataloader)
 
-        return self.evaluation_metrics.result()
+            if self.accelerator.is_main_process:
+                loader_iterator = tqdm(
+                    loader_iterator, desc=part, total=len(dataloader)
+                )
+            for batch_idx, batch in loader_iterator:
+                batch, _, _ = self.process_batch(batch)
+                # gathering must be called on all processes to avoid deadlock
+                gathered_batch = self._gather_batch_for_metrics(batch)
+                if self.accelerator.is_main_process:
+                    self._update_metrics(gathered_batch, self.evaluation_metrics)
+            if self.accelerator.is_main_process:
+                self.writer.set_step(epoch * self.epoch_len, part)
+                self._log_scalars(self.evaluation_metrics)
+                self._log_batch(
+                    batch_idx, batch, part
+                )  # log only the last batch during inference
+
+        logs = {}
+        if self.accelerator.is_main_process:
+            logs = self.evaluation_metrics.result()
+        return logs
+
+    def _update_metrics(self, gathered_batch, metrics, gather_loss=True):
+        """
+        Update metrics using the current batch.
+
+        Args:
+            gathered_batch (dict): dict-based batch containing the data from
+                the dataloader (possibly transformed via batch transform),
+                model outputs, and losses. Must be the output of
+                self._gather_batch_for_metrics.
+            metrics (MetricTracker): MetricTracker object that computes
+                and aggregates the metrics. The metrics depend on the type of
+                the partition (train or inference).
+            gather_loss (bool): if False, skip updating loss metrics.
+        Returns:
+            gathered_loss (float): overall loss. Used for logging.
+        """
+        metrics_type = "train" if self.is_train else "inference"
+        metric_funcs = self.metrics[metrics_type]
+
+        # update metrics for each loss (in case of multiple losses)
+        if gather_loss:
+            for loss_name in self.config.writer.loss_names:
+                gathered_loss = gathered_batch[loss_name]  # list
+                gathered_loss = (
+                    torch.tensor([elem.item() for elem in gathered_loss]).mean().item()
+                )
+                metrics.update(loss_name, gathered_loss)
+        else:
+            gathered_loss = None
+
+        for met in metric_funcs:
+            metrics.update(met.name, met(**gathered_batch))
+
+        return gathered_loss
+
+    def _gather_batch_for_metrics(self, batch):
+        """
+        Gather tensor values across processes for metric computation.
+        Non-tensor objects are left as-is.
+
+        Gathered object is a list containing objects from each rank.
+        [obj_rank_0, obj_rank_1, ...].
+        This is safer in case of varying tensor shapes between ranks,
+        e.g. due to padding.
+        Metrics calculation need to account for this design.
+
+        Args:
+            batch (dict): current batch.
+        Returns:
+            gathered (dict): gathered batch.
+        """
+        gathered = {}
+        for key, value in batch.items():
+            if torch.is_tensor(value):
+                gathered_value = self.accelerator.gather_for_metrics(
+                    value.detach().cpu(), use_gather_object=True
+                )
+                # for consistency
+                if self.accelerator.num_processes == 1:
+                    gathered_value = [gathered_value]
+                gathered[key] = gathered_value
+            else:
+                gathered[key] = value
+        return gathered
 
     def _monitor_performance(self, logs, not_improved_count):
         """
@@ -311,10 +454,11 @@ class BaseTrainer:
                 else:
                     improved = False
             except KeyError:
-                self.logger.warning(
-                    f"Warning: Metric '{self.mnt_metric}' is not found. "
-                    "Model performance monitoring is disabled."
-                )
+                if self.accelerator.is_main_process:
+                    self.logger.warning(
+                        f"Warning: Metric '{self.mnt_metric}' is not found. "
+                        "Model performance monitoring is disabled."
+                    )
                 self.mnt_mode = "off"
                 improved = False
 
@@ -326,10 +470,11 @@ class BaseTrainer:
                 not_improved_count += 1
 
             if not_improved_count >= self.early_stop:
-                self.logger.info(
-                    "Validation performance didn't improve for {} epochs. "
-                    "Training stops.".format(self.early_stop)
-                )
+                if self.accelerator.is_main_process:
+                    self.logger.info(
+                        "Validation performance didn't improve for {} epochs. "
+                        "Training stops.".format(self.early_stop)
+                    )
                 stop_process = True
         return best, stop_process, not_improved_count
 
@@ -363,6 +508,8 @@ class BaseTrainer:
             batch (dict): dict-based batch containing the data from
                 the dataloader (possibly transformed via batch transform).
         """
+        if self.batch_transforms is None:
+            return batch
         # do batch transforms on device
         transform_type = "train" if self.is_train else "inference"
         transforms = self.batch_transforms.get(transform_type)
@@ -379,9 +526,10 @@ class BaseTrainer:
         config.trainer.max_grad_norm
         """
         if self.config["trainer"].get("max_grad_norm", None) is not None:
-            clip_grad_norm_(
-                self.model.parameters(), self.config["trainer"]["max_grad_norm"]
-            )
+            if self.accelerator.sync_gradients:  # safe in gradient accumulation cases
+                self.accelerator.clip_grad_norm_(
+                    self.model.parameters(), self.config["trainer"]["max_grad_norm"]
+                )
 
     @torch.no_grad()
     def _get_grad_norm(self, norm_type=2):
@@ -414,12 +562,8 @@ class BaseTrainer:
                 within the epoch.
         """
         base = "[{}/{} ({:.0f}%)]"
-        if hasattr(self.train_dataloader, "n_samples"):
-            current = batch_idx * self.train_dataloader.batch_size
-            total = self.train_dataloader.n_samples
-        else:
-            current = batch_idx
-            total = self.epoch_len
+        current = batch_idx
+        total = self.epoch_len
         return base.format(current, total, 100.0 * current / total)
 
     @abstractmethod
@@ -451,39 +595,88 @@ class BaseTrainer:
         for metric_name in metric_tracker.keys():
             self.writer.add_scalar(f"{metric_name}", metric_tracker.avg(metric_name))
 
-    def _save_checkpoint(self, epoch, save_best=False, only_best=False):
+    def _save_checkpoint_in_dir(self, dir_name):
+        """
+        Save the checkpoint in the requested directory name.
+        Must be called only from the main process.
+
+        If the multi-node setup does not share the filesystem,
+        saving must be called from the *local* main process.
+
+        Args:
+            dir_name (str): name of the directory inside self.checkpoint_dir
+        """
+        full_checkpoint_dir = self.checkpoint_dir / dir_name
+        full_checkpoint_dir.mkdir(exist_ok=True, parents=True)
+        self.logger.info(f"Saving checkpoint: {full_checkpoint_dir} ...")
+
+        arch = type(self.model).__name__
+        trainer_state = {
+            "arch": arch,
+            "epoch": self._last_epoch,
+            "global_step": self.global_step,
+            "epoch_step": self.epoch_step,
+            "seen_dataloader_batches": self.seen_dataloader_batches,
+            "monitor_best": self.mnt_best,
+            "config": OmegaConf.to_container(self.config, resolve=True),
+        }
+        write_json(trainer_state, str(full_checkpoint_dir / "trainer_state.json"))
+
+        # save accelerator state
+        self.accelerator.save_state(output_dir=full_checkpoint_dir)
+
+        # save model weights
+        unwrapped_model = self.accelerator.unwrap_model(self.model)
+        # separately to avoid overwriting state weights
+        model_weights_dir = full_checkpoint_dir / "model_weights"
+        unwrapped_model.save_pretrained(
+            model_weights_dir,
+            is_main_process=self.accelerator.is_main_process,
+            save_function=self.accelerator.save,
+        )
+
+        if self.accelerator.is_main_process:
+            if self.config.writer.log_checkpoints:
+                self.writer.add_checkpoint(
+                    full_checkpoint_dir, str(full_checkpoint_dir.parent)
+                )
+
+            if self.cfg_trainer.hf_push_to_hub:
+                upload_folder(
+                    repo_id=self.cfg_trainer.hf_repo_id,
+                    folder_path=full_checkpoint_dir,
+                    path_in_repo="checkpoint-last",  # rename
+                    commit_message=f"Update latest checkpoint ({dir_name})",
+                    delete_patterns="checkpoint-last/*",  # remove old data
+                )
+
+    def _save_checkpoint(self, save_best=False, only_best=False):
         """
         Save the checkpoints.
 
+        If the multi-node setup does not share the filesystem,
+        saving must be called from the *local* main process.
+        Therefore, replace is_main_process here with is_local_main_process.
+
         Args:
-            epoch (int): current epoch number.
-            save_best (bool): if True, rename the saved checkpoint to 'model_best.pth'.
+            save_best (bool): if True, rename the saved checkpoint to
+                'checkpoint-GlobalStepNumber'.
             only_best (bool): if True and the checkpoint is the best, save it only as
-                'model_best.pth'(do not duplicate the checkpoint as
-                checkpoint-epochEpochNumber.pth)
+                'checkpoint-best'(do not duplicate the checkpoint as
+                checkpoint-GlobalStepNumber)
         """
-        arch = type(self.model).__name__
-        state = {
-            "arch": arch,
-            "epoch": epoch,
-            "state_dict": self.model.state_dict(),
-            "optimizer": self.optimizer.state_dict(),
-            "lr_scheduler": self.lr_scheduler.state_dict(),
-            "monitor_best": self.mnt_best,
-            "config": self.config,
-        }
-        filename = str(self.checkpoint_dir / f"checkpoint-epoch{epoch}.pth")
-        if not (only_best and save_best):
-            torch.save(state, filename)
-            if self.config.writer.log_checkpoints:
-                self.writer.add_checkpoint(filename, str(self.checkpoint_dir.parent))
-            self.logger.info(f"Saving checkpoint: {filename} ...")
-        if save_best:
-            best_path = str(self.checkpoint_dir / "model_best.pth")
-            torch.save(state, best_path)
-            if self.config.writer.log_checkpoints:
-                self.writer.add_checkpoint(best_path, str(self.checkpoint_dir.parent))
-            self.logger.info("Saving current best: model_best.pth ...")
+        self.accelerator.wait_for_everyone()
+        if self.accelerator.is_main_process:
+            dir_name = f"checkpoint-{self.global_step}"
+            if save_best and only_best:
+                dir_name = "checkpoint-best"
+                self._save_checkpoint_in_dir(dir_name)
+                return None
+            self._save_checkpoint_in_dir(dir_name)
+            if save_best:
+                dir_name = "checkpoint-best"
+                self._save_checkpoint_in_dir(dir_name)
+        self.accelerator.wait_for_everyone()
 
     def _resume_checkpoint(self, resume_path):
         """
@@ -493,61 +686,65 @@ class BaseTrainer:
 
         Notice that the checkpoint should be located in the current experiment
         saved directory (where all checkpoints are saved in '_save_checkpoint').
+        You can also resume from the remote HuggingFace repo.
 
         Args:
             resume_path (str): Path to the checkpoint to be resumed.
+                Use 'huggingface' to resume from the last checkpoint saved in
+                'config.trainer.hf_repo_id'.
         """
-        resume_path = str(resume_path)
-        self.logger.info(f"Loading checkpoint: {resume_path} ...")
-        checkpoint = torch.load(resume_path, self.device)
-        self.start_epoch = checkpoint["epoch"] + 1
-        self.mnt_best = checkpoint["monitor_best"]
+        if resume_path == "huggingface":
+            if self.accelerator.is_main_process:
+                snapshot_download(
+                    repo_id=self.cfg_trainer.hf_repo_id,
+                    local_dir=self.checkpoint_dir,
+                )
+            resume_path = self.checkpoint_dir / "checkpoint-last"
+        self.accelerator.wait_for_everyone()
+
+        if self.accelerator.is_main_process:
+            self.logger.info(f"Loading checkpoint: {resume_path} ...")
+
+        trainer_state = read_json(str(resume_path / "trainer_state.json"))
+        self.start_epoch = trainer_state["epoch"]
+        self._last_epoch = trainer_state["epoch"]
+        self.global_step = trainer_state["global_step"]
+        self.epoch_step = trainer_state["epoch_step"]
+        self.seen_dataloader_batches = trainer_state["seen_dataloader_batches"]
+
+        if self.epoch_step == -1:
+            # the saving was done at the end of epoch
+            # we will start from the next one
+            self.start_epoch += 1
+
+        self.mnt_best = trainer_state["monitor_best"]
 
         # load architecture params from checkpoint.
-        if checkpoint["config"]["model"] != self.config["model"]:
-            self.logger.warning(
-                "Warning: Architecture configuration given in the config file is different from that "
-                "of the checkpoint. This may yield an exception when state_dict is loaded."
+        if trainer_state["config"]["model"] != self.config["model"]:
+            if self.accelerator.is_main_process:
+                self.logger.warning(
+                    "Warning: Architecture configuration given in the config file is different from that "
+                    "of the checkpoint. This may yield an exception when state_dict is loaded."
+                )
+        self.accelerator.load_state(resume_path)
+
+        if self.seen_dataloader_batches == 0:
+            # to avoid repeating the dataloader state twice,
+            # i.e., to avoid skipped_dataloader == train_dataloader (state-wise)
+            skipped_dataloader = None
+        else:
+            if self.accelerator.is_main_process:
+                self.logger.info(
+                    f"Skipping first {self.seen_dataloader_batches} batches in the dataloader after resume."
+                )
+            skipped_dataloader = self.accelerator.skip_first_batches(
+                self.train_dataloader, self.seen_dataloader_batches
             )
-        self.model.load_state_dict(checkpoint["state_dict"])
 
-        # load optimizer state from checkpoint only when optimizer type is not changed.
-        if (
-            checkpoint["config"]["optimizer"] != self.config["optimizer"]
-            or checkpoint["config"]["lr_scheduler"] != self.config["lr_scheduler"]
-        ):
-            self.logger.warning(
-                "Warning: Optimizer or lr_scheduler given in the config file is different "
-                "from that of the checkpoint. Optimizer and scheduler parameters "
-                "are not resumed."
+        if self.accelerator.is_main_process:
+            self.logger.info(
+                f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"
             )
-        else:
-            self.optimizer.load_state_dict(checkpoint["optimizer"])
-            self.lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
+        self.accelerator.wait_for_everyone()
 
-        self.logger.info(
-            f"Checkpoint loaded. Resume training from epoch {self.start_epoch}"
-        )
-
-    def _from_pretrained(self, pretrained_path):
-        """
-        Init model with weights from pretrained pth file.
-
-        Notice that 'pretrained_path' can be any path on the disk. It is not
-        necessary to locate it in the experiment saved dir. The function
-        initializes only the model.
-
-        Args:
-            pretrained_path (str): path to the model state dict.
-        """
-        pretrained_path = str(pretrained_path)
-        if hasattr(self, "logger"):  # to support both trainer and inferencer
-            self.logger.info(f"Loading model weights from: {pretrained_path} ...")
-        else:
-            print(f"Loading model weights from: {pretrained_path} ...")
-        checkpoint = torch.load(pretrained_path, self.device)
-
-        if checkpoint.get("state_dict") is not None:
-            self.model.load_state_dict(checkpoint["state_dict"])
-        else:
-            self.model.load_state_dict(checkpoint)
+        return skipped_dataloader

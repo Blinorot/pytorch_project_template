@@ -18,12 +18,12 @@ class Inferencer(BaseTrainer):
         self,
         model,
         config,
+        accelerator,
         device,
         dataloaders,
         save_path,
         metrics=None,
         batch_transforms=None,
-        skip_model_load=False,
     ):
         """
         Initialize the Inferencer.
@@ -31,9 +31,11 @@ class Inferencer(BaseTrainer):
         Args:
             model (nn.Module): PyTorch model.
             config (DictConfig): run config containing inferencer config.
-            device (str): device for tensors and model.
+            accelerator (Accelerator): accelerator for handing processes and GPUs.
+            device (str | torch.device): device for tensors/model. Must be the same as
+                accelerator.device.
             dataloaders (dict[DataLoader]): dataloaders for different
-                sets of data.
+                sets of data. Evaluation will be done on all provided sets.
             save_path (str): path to save model predictions and other
                 information.
             metrics (dict): dict with the definition of metrics for
@@ -42,43 +44,35 @@ class Inferencer(BaseTrainer):
             batch_transforms (dict[nn.Module] | None): transforms that
                 should be applied on the whole batch. Depend on the
                 tensor name.
-            skip_model_load (bool): if False, require the user to set
-                pre-trained checkpoint path. Set this argument to True if
-                the model desirable weights are defined outside of the
-                Inferencer Class.
         """
-        assert (
-            skip_model_load or config.inferencer.get("from_pretrained") is not None
-        ), "Provide checkpoint or set skip_model_load=True"
-
         self.config = config
         self.cfg_trainer = self.config.inferencer
 
+        self.accelerator = accelerator
         self.device = device
 
         self.model = model
         self.batch_transforms = batch_transforms
 
         # define dataloaders
-        self.evaluation_dataloaders = {k: v for k, v in dataloaders.items()}
+        self.evaluation_dataloaders = dataloaders
 
         # path definition
-
         self.save_path = save_path
 
         # define metrics
-        self.metrics = metrics
-        if self.metrics is not None:
-            self.evaluation_metrics = MetricTracker(
-                *[m.name for m in self.metrics["inference"]],
-                writer=None,
-            )
+        if self.accelerator.is_main_process:
+            self.metrics = metrics
+            if self.metrics["inference"] is not None:
+                self.evaluation_metrics = MetricTracker(
+                    *[m.name for m in self.metrics["inference"]],
+                    writer=None,
+                )
+            else:
+                self.evaluation_metrics = None
         else:
+            self.metrics = None
             self.evaluation_metrics = None
-
-        if not skip_model_load:
-            # init model
-            self._from_pretrained(config.inferencer.get("from_pretrained"))
 
     def run_inference(self):
         """
@@ -94,9 +88,9 @@ class Inferencer(BaseTrainer):
             part_logs[part] = logs
         return part_logs
 
-    def process_batch(self, batch_idx, batch, metrics, part):
+    def process_batch(self, batch_idx, batch, part):
         """
-        Run batch through the model, compute metrics, and
+        Run batch through the model and
         save predictions to disk.
 
         Save directory is defined by save_path in the inference
@@ -106,9 +100,6 @@ class Inferencer(BaseTrainer):
             batch_idx (int): the index of the current batch.
             batch (dict): dict-based batch containing the data from
                 the dataloader.
-            metrics (MetricTracker): MetricTracker object that computes
-                and aggregates the metrics. The metrics depend on the type
-                of the partition (train or inference).
             part (str): name of the partition. Used to define proper saving
                 directory.
         Returns:
@@ -122,21 +113,19 @@ class Inferencer(BaseTrainer):
         outputs = self.model(**batch)
         batch.update(outputs)
 
-        if metrics is not None:
-            for met in self.metrics["inference"]:
-                metrics.update(met.name, met(**batch))
-
         # Some saving logic. This is an example
         # Use if you need to save predictions on disk
 
         batch_size = batch["logits"].shape[0]
         current_id = batch_idx * batch_size
 
+        rank = self.accelerator.process_index
+        full_save_dir = self.save_path / part / f"rank_{rank}"
         for i in range(batch_size):
             # clone because of
             # https://github.com/pytorch/pytorch/issues/1995
-            logits = batch["logits"][i].clone()
-            label = batch["labels"][i].clone()
+            logits = batch["logits"][i].detach().cpu().clone()
+            label = batch["labels"][i].detach().cpu().clone()
             pred_label = logits.argmax(dim=-1)
 
             output_id = current_id + i
@@ -148,7 +137,10 @@ class Inferencer(BaseTrainer):
 
             if self.save_path is not None:
                 # you can use safetensors or other lib here
-                torch.save(output, self.save_path / part / f"output_{output_id}.pth")
+                output_save_path = full_save_dir / f"output_{output_id}.pth"
+                # prevent overwriting
+                if not output_save_path.exists():
+                    torch.save(output, output_save_path)
 
         return batch
 
@@ -166,23 +158,43 @@ class Inferencer(BaseTrainer):
         self.is_train = False
         self.model.eval()
 
-        self.evaluation_metrics.reset()
+        if self.accelerator.is_main_process:
+            if self.evaluation_metrics is not None:
+                self.evaluation_metrics.reset()
 
-        # create Save dir
+        # create save dir for each rank to avoid overwrite
+        rank = self.accelerator.process_index
         if self.save_path is not None:
-            (self.save_path / part).mkdir(exist_ok=True, parents=True)
+            (self.save_path / part / f"rank_{rank}").mkdir(exist_ok=True, parents=True)
+
+        self.accelerator.wait_for_everyone()
 
         with torch.no_grad():
-            for batch_idx, batch in tqdm(
-                enumerate(dataloader),
-                desc=part,
-                total=len(dataloader),
-            ):
+            loader_iterator = enumerate(dataloader)
+
+            if self.accelerator.is_main_process:
+                loader_iterator = tqdm(
+                    loader_iterator, desc=part, total=len(dataloader)
+                )
+            for batch_idx, batch in loader_iterator:
                 batch = self.process_batch(
                     batch_idx=batch_idx,
                     batch=batch,
                     part=part,
-                    metrics=self.evaluation_metrics,
                 )
+                if self.evaluation_metrics is not None:
+                    # gathering must be called on all processes to avoid deadlock
+                    gathered_batch = self._gather_batch_for_metrics(batch)
+                    if self.accelerator.is_main_process:
+                        self._update_metrics(
+                            gathered_batch,
+                            self.evaluation_metrics,
+                            gather_loss=False,
+                        )
 
-        return self.evaluation_metrics.result()
+        logs = {}
+        if self.accelerator.is_main_process:
+            if self.evaluation_metrics is not None:
+                logs = self.evaluation_metrics.result()
+
+        return logs

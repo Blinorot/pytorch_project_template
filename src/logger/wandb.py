@@ -109,7 +109,7 @@ class WandBWriter:
         inside the run_name dir.
 
         Args:
-            checkpoint_path (str): path to the checkpoint file.
+            checkpoint_path (str): path to the checkpoint file or dir.
             save_dir (str): path to the dir, where checkpoint is saved.
         """
         self.wandb.save(checkpoint_path, base_path=save_dir)

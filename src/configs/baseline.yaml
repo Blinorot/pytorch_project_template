@@ -16,11 +16,13 @@ lr_scheduler:
 loss_function:
   _target_: src.loss.ExampleLoss
 trainer:
+  gradient_accumulation_steps: 1
   log_step: 50
   n_epochs: 100
   epoch_len: 500
   device_tensors: ["data_object", "labels"] # which tensors should be on device (ex. GPU)
-  resume_from: null # null or path to the checkpoint dir with *.pth and config.yaml
+  resume_from: null # null or path to the checkpoint dir in the HF format
+  from_pretrained: null # null or path to the checkpoint dir in the HF format
   device: auto # device name or "auto"
   override: False # if True, will override the previous run with the same name
   monitor: "max test_MulticlassAccuracy" # "off" or "max/min metric_name", i.e. our goal is to maximize/minimize metric
@@ -28,3 +30,6 @@ trainer:
   early_stop: ${trainer.n_epochs} # epochs for early stopping
   save_dir: "saved"
   seed: 1
+  hf_push_to_hub: False
+  hf_repo_id: null
+  hf_repo_is_private: True

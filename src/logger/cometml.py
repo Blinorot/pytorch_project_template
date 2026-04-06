@@ -128,7 +128,7 @@ class CometMLWriter:
         inside the models/checkpoints directory.
 
         Args:
-            checkpoint_path (str): path to the checkpoint file.
+            checkpoint_path (str): path to the checkpoint file or folder.
             save_dir (str): path to the dir, where checkpoint is saved.
         """
         # For comet, save dir is not required

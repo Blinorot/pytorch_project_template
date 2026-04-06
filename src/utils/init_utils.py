@@ -8,6 +8,7 @@ import subprocess
 
 import numpy as np
 import torch
+from accelerate.utils import set_seed
 from omegaconf import OmegaConf
 
 from src.logger.logger import setup_logging
@@ -28,20 +29,28 @@ def set_worker_seed(worker_id):
     random.seed(worker_seed)
 
 
-def set_random_seed(seed):
+def set_random_seed(
+    seed, device_specific=True, deterministic=True, strict_deterministic=False
+):
     """
     Set random seed for model training or inference.
 
     Args:
         seed (int): defines which seed to use.
+        device_specific (bool): if True, set unique seed for each process.
+        deterministic (bool): If True, enable deterministic behavior where possible (cudnn).
+        strict_deterministic (bool): If True, require deterministic PyTorch algorithms globally.
     """
-    # fix random seeds for reproducibility
-    torch.manual_seed(seed)
-    torch.backends.cudnn.deterministic = True
-    # benchmark=True works faster but reproducibility decreases
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(seed)
-    random.seed(seed)
+    accelerator_deterministic = deterministic and strict_deterministic
+    set_seed(
+        seed, device_specific=device_specific, deterministic=accelerator_deterministic
+    )
+    if not accelerator_deterministic:
+        if deterministic and (not strict_deterministic):
+            torch.backends.cudnn.deterministic = True
+            # benchmark=True works faster but reproducibility decreases
+            torch.backends.cudnn.benchmark = False
+
     os.environ["PYTHONHASHSEED"] = str(seed)
 
 

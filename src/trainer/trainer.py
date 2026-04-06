@@ -1,3 +1,5 @@
+import torch
+
 from src.metrics.tracker import MetricTracker
 from src.trainer.base_trainer import BaseTrainer
 
@@ -7,9 +9,9 @@ class Trainer(BaseTrainer):
     Trainer class. Defines the logic of batch logging and processing.
     """
 
-    def process_batch(self, batch, metrics: MetricTracker):
+    def process_batch(self, batch):
         """
-        Run batch through the model, compute metrics, compute loss,
+        Run batch through the model, compute loss,
         and do training step (during training stage).
 
         The function expects that criterion aggregates all losses
@@ -18,9 +20,6 @@ class Trainer(BaseTrainer):
         Args:
             batch (dict): dict-based batch containing the data from
                 the dataloader.
-            metrics (MetricTracker): MetricTracker object that computes
-                and aggregates the metrics. The metrics depend on the type of
-                the partition (train or inference).
         Returns:
             batch (dict): dict-based batch containing the data from
                 the dataloader (possibly transformed via batch transform),
@@ -29,31 +28,41 @@ class Trainer(BaseTrainer):
         batch = self.move_batch_to_device(batch)
         batch = self.transform_batch(batch)  # transform batch on device -- faster
 
-        metric_funcs = self.metrics["inference"]
         if self.is_train:
-            metric_funcs = self.metrics["train"]
-            self.optimizer.zero_grad()
+            with self.accelerator.accumulate(self.model):
+                outputs = self.model(**batch)
+                batch.update(outputs)
 
-        outputs = self.model(**batch)
-        batch.update(outputs)
+                all_losses = self.criterion(**batch)
+                batch.update(all_losses)
 
-        all_losses = self.criterion(**batch)
-        batch.update(all_losses)
+                # sum of all losses is always called loss
+                grad_norm = None
+                self.accelerator.backward(batch["loss"])
+                if self.accelerator.sync_gradients:
+                    grad_norm = self._get_grad_norm()
+                    self._clip_grad_norm()
+                    self.optimizer.step()
+                    optimizer_step_was_skipped = (
+                        self.accelerator.optimizer_step_was_skipped
+                    )
+                    if self.lr_scheduler is not None and not optimizer_step_was_skipped:
+                        self.lr_scheduler.step()
+                    self.optimizer.zero_grad()
 
-        if self.is_train:
-            batch["loss"].backward()  # sum of all losses is always called loss
-            self._clip_grad_norm()
-            self.optimizer.step()
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
+                # control actual updates
+                optimizer_did_step = self.accelerator.sync_gradients
+        else:
+            outputs = self.model(**batch)
+            batch.update(outputs)
 
-        # update metrics for each loss (in case of multiple losses)
-        for loss_name in self.config.writer.loss_names:
-            metrics.update(loss_name, batch[loss_name].item())
+            all_losses = self.criterion(**batch)
+            batch.update(all_losses)
 
-        for met in metric_funcs:
-            metrics.update(met.name, met(**batch))
-        return batch
+            optimizer_did_step = None
+            grad_norm = None
+
+        return batch, optimizer_did_step, grad_norm
 
     def _log_batch(self, batch_idx, batch, mode="train"):
         """

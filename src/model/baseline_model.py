@@ -1,28 +1,52 @@
 from torch import nn
 from torch.nn import Sequential
+from transformers import PreTrainedConfig, PreTrainedModel
 
 
-class BaselineModel(nn.Module):
-    """
-    Simple MLP
-    """
+class BaselineConfig(PreTrainedConfig):
+    model_type = "baseline"
 
-    def __init__(self, n_feats, n_class, fc_hidden=512):
+    # it is important to provide default values for all arguments
+    def __init__(self, n_feats=1024, n_class=2, fc_hidden=512, **kwargs):
         """
         Args:
             n_feats (int): number of input features.
             n_class (int): number of classes.
             fc_hidden (int): number of hidden features.
         """
-        super().__init__()
+        super().__init__(**kwargs)
+        self.n_feats = n_feats
+        self.n_class = n_class
+        self.fc_hidden = fc_hidden
+
+
+class BaselineModel(PreTrainedModel):
+    """
+    Simple MLP
+    """
+
+    config_class = BaselineConfig
+
+    def __init__(self, config, **kwargs):
+        """
+        Args:
+            config (BaselineConfig): configuration.
+        """
+        super().__init__(config, **kwargs)
 
         self.net = Sequential(
             # people say it can approximate any function...
-            nn.Linear(in_features=n_feats, out_features=fc_hidden),
+            nn.Linear(
+                in_features=self.config.n_feats, out_features=self.config.fc_hidden
+            ),
             nn.ReLU(),
-            nn.Linear(in_features=fc_hidden, out_features=fc_hidden),
+            nn.Linear(
+                in_features=self.config.fc_hidden, out_features=self.config.fc_hidden
+            ),
             nn.ReLU(),
-            nn.Linear(in_features=fc_hidden, out_features=n_class),
+            nn.Linear(
+                in_features=self.config.fc_hidden, out_features=self.config.n_class
+            ),
         )
 
     def forward(self, data_object, **batch):

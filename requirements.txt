@@ -1,7 +1,10 @@
-torch==2.2.0
-torchvision==0.17.0
+torch==2.10.0
+torchvision==0.25.0
 torchmetrics
-numpy==1.26.4
+accelerate
+safetensors
+transformers==5.4.0
+numpy
 tqdm
 matplotlib
 pandas
