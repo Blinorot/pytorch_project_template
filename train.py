@@ -82,7 +82,7 @@ def main(config):
         model = AutoModel.from_pretrained(config.trainer.from_pretrained)
     if accelerator.is_main_process:
         logger.info(model)
-
+        model_arch = type(model).__name__
     model.to(device)
 
     # get function handles of loss and metrics
@@ -112,6 +112,31 @@ def main(config):
             private=config.trainer.hf_repo_is_private,
             repo_type="model",
             exist_ok=True,
+        )
+
+    if accelerator.is_main_process:
+        num_processes = accelerator.num_processes
+        num_samples = len(dataloaders["train"].dataset)
+        total_epoch_len = config.trainer.epoch_len
+        grad_accum_steps = config.trainer.gradient_accumulation_steps
+        if total_epoch_len is None:
+            # epoch-based training
+            total_epoch_len = len(dataloaders["train"]) // grad_accum_steps
+        num_steps = total_epoch_len * config.trainer.n_epochs
+        batch_size = min(num_samples, config.dataloader.train.batch_size)
+        effective_batch_size = grad_accum_steps * num_processes * batch_size
+        mixed_precision = accelerator.mixed_precision
+        logger.info(
+            (
+                f"Starting Training of model: {model_arch}\n"
+                f"    Num Training Samples: {num_samples}\n"
+                f"    Num Processes: {num_processes}\n"
+                f"    Total Number of Steps: {num_steps}\n"
+                f"    Effective Batch Size: {effective_batch_size}\n"
+                f"    Per-Process Batch Size: {batch_size}\n"
+                f"    Gradient Accumulation Steps: {grad_accum_steps}\n"
+                f"    Mixed Precision: {mixed_precision}\n"
+            )
         )
 
     trainer = Trainer(
