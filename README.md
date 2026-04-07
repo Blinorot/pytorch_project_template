@@ -1,4 +1,4 @@
-# PyTorch Template for DL projects
+# PyTorch Template for DL projects with HuggingFace Integration
 
 <p align="center">
   <a href="#about">About</a> •
@@ -25,19 +25,39 @@
 
 ## About
 
-This repository contains a template for [PyTorch](https://pytorch.org/)-based Deep Learning projects.
+This repository contains a template for [PyTorch](https://pytorch.org/)-based Deep Learning projects with [HuggingFace](https://huggingface.co/) Integration.
 
-The template utilizes different python-dev techniques to improve code readability. Configuration methods enhance reproducibility and experiments control.
+It is designed for researchers and engineers who appreciate the simplicity of the `Trainer` from [Hugging Face Transformers](https://huggingface.co/docs/transformers/index) for large-scale training, but need a more **general, customizable training framework** that goes beyond NLP use cases.
 
-The repository is released as a part of the [HSE DLA course](https://github.com/markovka17/dla), however, can easily be adopted for any DL-task.
+By combining [PyTorch](https://pytorch.org/), [Hugging Face Accelerate](https://huggingface.co/docs/accelerate/index), and [Hydra](https://hydra.cc/docs/intro/), this template enables scalable training, clean configuration management, and reproducible experimentation without sacrificing flexibility.
 
-This template is the official recommended template for the [EPFL CS-433 ML Course](https://www.epfl.ch/labs/mlo/machine-learning-cs-433/).
+Core features:
 
-> 📖 **If you use this template in your work, please cite this repository or include a reference. Attribution supports the project and encourages continued development.**
+1. **Scalable Training** (via [Accelerate](https://huggingface.co/docs/accelerate/index)):
+   - Multi-GPU and multi-node training
+   - Distributed inference support
+   - Gradient accumulation
+   - Automatic mixed precision (AMP)
+
+2. [HuggingFace](https://huggingface.co/) Ecosystem Compatibility:
+   - Checkpoints are fully compatible with [Hugging Face Transformers](https://huggingface.co/docs/transformers/index).
+   - Automatic pushing of checkpoints / models to the [Hugging Face Hub](https://huggingface.co/docs/hub/index).
+   - Models inherit from [transformers](https://huggingface.co/docs/transformers/index) `PreTrainedModel` and configs from `PreTrainedConfig`.
+   - Models can be loaded with `AutoModel.from_pretrained()`.
+   - Model implementations remain compatible with the broader Transformers ecosystem.
+
+3. [Hydra](https://hydra.cc/docs/intro/)-based configuration for enhanced control:
+   - Structured and composable configs.
+   - Easy re-configuration via CLI.
+
+As in the [main branch](https://github.com/Blinorot/pytorch_project_template/tree/main), the template utilizes different python-dev techniques to improve code readability. Configuration methods enhance reproducibility and experiments control.
+
+> [!IMPORTANT]
+> This branch is a **general template**. So, some parts of the code, e.g. dataset and metrics, are filled with dummy examples, showing how the code works and the expected flow. We advise you to read the doc-strings for all functions. The final users can add code required for their own tasks.
 
 ## Tutorials
 
-This template utilizes experiment tracking techniques, such as [WandB](https://docs.wandb.ai/) and [Comet ML](https://www.comet.com/docs/v2/), and [Hydra](https://hydra.cc/docs/intro/) for the configuration. It also automatically reformats code and conducts several checks via [pre-commit](https://pre-commit.com/). If you are not familiar with these tools, we advise you to look at the tutorials below:
+This template utilizes experiment tracking techniques, such as [WandB](https://docs.wandb.ai/) and [Comet ML](https://www.comet.com/docs/v2/), [Hydra](https://hydra.cc/docs/intro/) for the configuration, and [transformers](https://huggingface.co/docs/transformers/index) with [accelerate](https://huggingface.co/docs/accelerate/index) for the integration of [HuggingFace](https://huggingface.co/) infrastructure and large-scale training. It also automatically reformats code and conducts several checks via [pre-commit](https://pre-commit.com/). If you are not familiar with these tools, we advise you to look at the tutorials below:
 
 - [Python Dev Tips](https://github.com/ebezzam/python-dev-tips): information about [Git](https://git-scm.com/doc), [pre-commit](https://pre-commit.com/), [Hydra](https://hydra.cc/docs/intro/), and other stuff for better Python code development. The YouTube recording of the workshop is available [here](https://youtu.be/okxaTuBdDuY).
 
@@ -49,6 +69,10 @@ This template utilizes experiment tracking techniques, such as [WandB](https://d
 
 - [PyTorch Basics](https://github.com/markovka17/dla/tree/2024/week01/intro_to_pytorch): several notebooks with [PyTorch](https://pytorch.org/docs/stable/index.html) basics and corresponding seminar recordings from the [LauzHack Deep Learning Bootcamp](https://github.com/LauzHack/deep-learning-bootcamp/).
 
+- [Accelerate Quicktour](https://huggingface.co/docs/accelerate/quicktour): explanation of the core differences between classic training and `accelerate`-training pipelines. You can also check the tutorials on the same page.
+
+- [Transformers Quicktour](https://huggingface.co/docs/transformers/quicktour): explanation of the `transformer` basics and what `PreTrainedModel` allows to do.
+
 To start working with a template, just click on the `use this template` button.
 
 <a href="https://github.com/Blinorot/pytorch_project_template/generate">
@@ -56,17 +80,6 @@ To start working with a template, just click on the `use this template` button.
 </a>
 
 You can choose any of the branches as a starting point. [Set your choice as the default branch](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-branches-in-your-repository/changing-the-default-branch) in the repository settings. You can also [delete unnecessary branches](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-and-deleting-branches-within-your-repository).
-
-## Examples
-
-> [!IMPORTANT]
-> The main branch leaves some of the code parts empty or fills them with dummy examples, showing just the base structure. The final users can add code required for their own tasks.
-
-You can find examples of this template completed for different tasks in other branches:
-
-- [Image classification](https://github.com/Blinorot/pytorch_project_template/tree/example/image-classification): simple classification problem on [MNIST](https://yann.lecun.com/exdb/mnist/) and [CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) datasets.
-
-- [ASR](https://github.com/Blinorot/pytorch_project_template/tree/example/asr): template for the automatic speech recognition (ASR) task. Some of the parts (for example, `collate_fn` and beam search for `text_encoder`) are missing for studying purposes of [HSE DLA course](https://github.com/markovka17/dla).
 
 ## Installation
 
@@ -113,15 +126,90 @@ Installation may depend on your task. The general steps are the following:
 To train a model, run the following command:
 
 ```bash
-python3 train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+accelerate launch --config-file ACCELERATE_CONFIG \
+   train.py -cn=HYDRA_CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
 ```
 
-Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
+Where `ACCELERATE_CONFIG` is a config from `src/configs/accelerate`, `HYDRA_CONFIG_NAME` is a config from `src/configs`, and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
+
+Example for a single-GPU training:
+
+```bash
+accelerate launch --config-file src/configs/accelerate/single.yaml \
+   train.py -cn=HYDRA_CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+```
+
+Example for a multi-GPU training:
+
+```bash
+accelerate launch --config-file src/configs/accelerate/multigpu.yaml \
+   train.py -cn=HYDRA_CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+```
+
+You can also change the number of GPUs or the precision used by `--num-processes NUM_GPUS` and `--mixed-precision PRECISION_TYPE` after choosing `accelerate` config and before `train.py`. See [accelerate documentation](https://huggingface.co/docs/accelerate/index).
+
+For a multi-node setup, we provide an example for a [SLURM](https://github.com/schedmd/slurm)-based server:
+
+```bash
+#!/bin/bash
+#SBATCH --job-name=multinode_train
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:4
+#SBATCH --partition=<PARTITION_NAME>
+#SBATCH --time=1:00:00
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+
+set -euo pipefail
+
+mkdir -p logs
+
+export PYTHONUNBUFFERED=1
+export OMP_NUM_THREADS=8
+
+MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+MASTER_PORT=29510
+
+echo "MASTER_ADDR=$MASTER_ADDR"
+echo "MASTER_PORT=$MASTER_PORT"
+echo "SLURM_JOB_NODELIST=$SLURM_JOB_NODELIST"
+
+srun \
+  --ntasks=${SLURM_JOB_NUM_NODES} \
+  --ntasks-per-node=1 \
+  --container-writable \
+  --environment=<CONTAINER_ENV_NAME> \
+  bash -lc '
+set -euo pipefail
+
+echo "HOSTNAME=$(hostname)"
+echo "SLURM_NODEID=${SLURM_NODEID}"
+
+# Uncomment if the container does not have all the packages
+# python -m pip install -r requirements.txt
+
+# Adjust num-processes = GPUs per node × number of nodes
+
+accelerate launch \
+  --config-file src/configs/accelerate/multigpu.yaml \
+  --num-machines ${SLURM_JOB_NUM_NODES} \
+  --num-processes 8 \
+  --machine-rank ${SLURM_NODEID} \
+  --main-process-ip '"$MASTER_ADDR"' \
+  --main-process-port '"$MASTER_PORT"' \
+  train.py \
+    writer.run_name="multinode-training"
+'
+```
+
+> [!IMPORTANT]
+> We assume that all nodes have a shared filesystem. Therefore, the model checkpoints are saved only by the main process on the head node. If your filesystem is not shared, you need to replace `accelerator.is_main_process` if-else statements with `accelerator.is_local_main_process` in saving-related parts of the code.
 
 To run inference (evaluate the model or save predictions):
 
 ```bash
-python3 inference.py HYDRA_CONFIG_ARGUMENTS
+accelerate launch --config-file ACCELERATE_CONFIG inference.py HYDRA_CONFIG_ARGUMENTS
 ```
 
 ## Useful Links:
