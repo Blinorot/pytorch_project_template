@@ -400,9 +400,18 @@ class BaseTrainer:
         Non-tensor objects are left as-is.
 
         Gathered object is a list containing objects from each rank.
-        [obj_rank_0, obj_rank_1, ...].
+        A rank_i tensor of shape Bx(*OtherDims) is converted into a list of tensors
+        of shape (*OtherDims). Then, all lists are concatenated:
+        [
+        obj_rank_0_batch_elem_0, obj_rank_0_batch_elem_1, ...,
+        obj_rank_1_batch_elem_0, obj_rank_1_batch_elem_1, ...,
+        ...
+        ].
+        The result is a list of length B*N_Processes.
         This is safer in case of varying tensor shapes between ranks,
         e.g. due to padding.
+        Scalar tensors are reshaped to be a (1,) tensor.
+
         Metrics calculation need to account for this design.
 
         Args:
@@ -413,12 +422,15 @@ class BaseTrainer:
         gathered = {}
         for key, value in batch.items():
             if torch.is_tensor(value):
+                if value.ndim == 0:
+                    value = value.unsqueeze(-1)  # add dim for scalar tensors
                 gathered_value = self.accelerator.gather_for_metrics(
                     value.detach().cpu(), use_gather_object=True
                 )
-                # for consistency
                 if self.accelerator.num_processes == 1:
-                    gathered_value = [gathered_value]
+                    # gather returns a tensor instead of list
+                    # converting to list for consistency
+                    gathered_value = list(gathered_value.unbind(dim=0))
                 gathered[key] = gathered_value
             else:
                 gathered[key] = value
