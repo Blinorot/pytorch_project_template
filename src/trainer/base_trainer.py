@@ -176,6 +176,7 @@ class BaseTrainer:
         except KeyboardInterrupt as e:
             if self.accelerator.is_main_process:
                 self.logger.info("Saving model on keyboard interrupt")
+                # saving is done in the main process
                 self._save_checkpoint(save_best=False)
             raise e
 
@@ -197,21 +198,27 @@ class BaseTrainer:
             logs = {"epoch": epoch}
             logs.update(result)
 
-            # print logged information to the screen
-            for key, value in logs.items():
-                if self.accelerator.is_main_process:
+            if self.accelerator.is_main_process:
+                # print logged information to the screen
+                for key, value in logs.items():
                     self.logger.info(f"    {key:15s}: {value}")
 
-            # evaluate model performance according to configured metric,
-            # save best checkpoint as model_best
-            best, stop_process, not_improved_count = self._monitor_performance(
-                logs, not_improved_count
-            )
+                # evaluate model performance according to configured metric,
+                # save best checkpoint as model_best
+                best, stop_process, not_improved_count = self._monitor_performance(
+                    logs, not_improved_count
+                )
 
-            if epoch % self.save_period == 0 or best:
-                self._save_checkpoint(save_best=best, only_best=True)
+                if epoch % self.save_period == 0 or best:
+                    self._save_checkpoint(save_best=best, only_best=True)
 
-            if stop_process:  # early_stop
+                if stop_process:  # early_stop
+                    self.accelerator.set_trigger()
+
+            # wait for the main process to finish logs and saving
+            self.accelerator.wait_for_everyone()
+
+            if self.accelerator.check_trigger():  # check early_stop trigger
                 break
 
     def _train_epoch(self, epoch):
@@ -677,7 +684,6 @@ class BaseTrainer:
                 'checkpoint-best'(do not duplicate the checkpoint as
                 checkpoint-GlobalStepNumber)
         """
-        self.accelerator.wait_for_everyone()
         if self.accelerator.is_main_process:
             dir_name = f"checkpoint-{self.global_step}"
             if save_best and only_best:
@@ -688,7 +694,6 @@ class BaseTrainer:
             if save_best:
                 dir_name = "checkpoint-best"
                 self._save_checkpoint_in_dir(dir_name)
-        self.accelerator.wait_for_everyone()
 
     def _resume_checkpoint(self, resume_path):
         """
