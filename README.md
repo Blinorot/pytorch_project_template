@@ -80,7 +80,7 @@ python3 train.py model=baseline
 If you want train your MLP on CIFAR-10, run this instead:
 
 ```bash
-python3 train.py model=baseline model.n_feats=3072 datasets=cifar datasets/batch_transforms=cifar
+python3 train.py model=baseline model.n_feats=3072 datasets=cifar transforms/batch_transforms=cifar
 ```
 
 If you want to fine-tune ResNet18 on CIFAR-10, run this:
