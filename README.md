@@ -35,10 +35,10 @@ Follow these steps:
 
    ```bash
    # create env
-   ~/.pyenv/versions/PYTHON_VERSION/bin/accelerate launch --config-file src/configs/accelerate/single.yaml -m venv project_env
+   ~/.pyenv/versions/PYTHON_VERSION/bin/python3 -m venv project_env
 
    # alternatively, using default python version
-   accelerate launch --config-file src/configs/accelerate/single.yaml -m venv project_env
+   python3 -m venv project_env
 
    # activate env
    source project_env/bin/activate
@@ -60,7 +60,9 @@ Follow these steps:
 To train a model, run the following command:
 
 ```bash
-accelerate launch --config-file ACCELERATE_CONFIG train.py -cn=CONFIG_NAME HYDRA_CONFIG_ARGUMENTS
+accelerate launch --config-file ACCELERATE_CONFIG \
+   train.py -cn=CONFIG_NAME \
+   HYDRA_CONFIG_ARGUMENTS
 ```
 
 Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` are optional arguments.
@@ -68,7 +70,8 @@ Where `CONFIG_NAME` is a config from `src/configs` and `HYDRA_CONFIG_ARGUMENTS` 
 To run inference (evaluate the model or save predictions):
 
 ```bash
-accelerate launch --config-file ACCELERATE_CONFIG inference.py HYDRA_CONFIG_ARGUMENTS
+accelerate launch --config-file ACCELERATE_CONFIG \
+   inference.py HYDRA_CONFIG_ARGUMENTS
 ```
 
 ## Examples
@@ -76,19 +79,28 @@ accelerate launch --config-file ACCELERATE_CONFIG inference.py HYDRA_CONFIG_ARGU
 To train a simple MLP on MNIST, run:
 
 ```bash
-accelerate launch --config-file src/configs/accelerate/single.yaml train.py model=baseline
+accelerate launch --config-file src/configs/accelerate/single.yaml \
+   train.py model=baseline
 ```
 
 If you want train your MLP on CIFAR-10, run this instead:
 
 ```bash
-accelerate launch --config-file src/configs/accelerate/single.yaml train.py model=baseline model.n_feats=3072 datasets=cifar transforms/batch_transforms=cifar
+accelerate launch --config-file src/configs/accelerate/single.yaml \
+   train.py model=baseline \
+   model.n_feats=3072 \
+   datasets=cifar \
+   transforms/batch_transforms=cifar
 ```
 
 If you want to fine-tune ResNet18 on CIFAR-10, run this:
 
 ```bash
-   accelerate launch --config-file src/configs/accelerate/single.yaml train.py model=resnet datasets=cifar model.input_channels=3 transforms/batch_transforms=cifar_resnet
+accelerate launch --config-file src/configs/accelerate/single.yaml \
+   train.py model=resnet \
+   datasets=cifar \
+   model.input_channels=3 \
+   transforms/batch_transforms=cifar_resnet
 ```
 
 Replace `single.yaml` with `multigpu.yaml` for multi-GPU training.
@@ -154,8 +166,13 @@ accelerate launch \
 For inference, call the `inference.py` script with a path to checkpoint:
 
 ```bash
-   accelerate launch --config-file src/configs/accelerate/single.yaml inference.py
-   inferencer.from_pretrained=PATH_TO_MODEL_WEIGHTS model=resnet datasets=cifar_test model.input_channels=3 transforms/batch_transforms=cifar_resnet
+accelerate launch --config-file src/configs/accelerate/single.yaml \
+   inference.py \
+   inferencer.from_pretrained=PATH_TO_MODEL_WEIGHTS \
+   model=resnet \
+   datasets=cifar_test \
+   model.input_channels=3 \
+   transforms/batch_transforms=cifar_resnet
 ```
 
 Where `PATH_TO_MODEL_WEIGHTS` is the path to the saved pretrained model, e.g., `saved/testing/checkpoint-best/model_weights`.
