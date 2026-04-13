@@ -1,0 +1,6 @@
+_target_: transformers.AutoConfig.for_model
+_args_:
+  - myresnet # model_type defined in the model config
+input_channels: 1
+n_class: 10
+use_pretrained: True

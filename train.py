@@ -36,7 +36,9 @@ def main(config):
 
     kwargs = [
         InitProcessGroupKwargs(timeout=timedelta(seconds=3600)),
-        DistributedDataParallelKwargs(find_unused_parameters=True),
+        DistributedDataParallelKwargs(
+            find_unused_parameters=config.trainer.find_unused_parameters
+        ),
     ]
     accelerator = Accelerator(
         device_placement=False,  # we set to False for precise control of devices in batches

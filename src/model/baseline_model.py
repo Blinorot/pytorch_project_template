@@ -1,8 +1,10 @@
+from huggingface_hub.dataclasses import strict
 from torch import nn
 from torch.nn import Sequential
 from transformers import PreTrainedConfig, PreTrainedModel
 
 
+@strict(accept_kwargs=True)
 class BaselineConfig(PreTrainedConfig):
     model_type = "baseline"
 
@@ -49,16 +51,21 @@ class BaselineModel(PreTrainedModel):
             ),
         )
 
-    def forward(self, data_object, **batch):
+        # must be called to fully initialize PreTrainedModel
+        # required for enabling .from_pretrained()
+        # see https://huggingface.co/docs/transformers/main/modeling_rules
+        self.post_init()
+
+    def forward(self, img, **batch):
         """
         Model forward method.
 
         Args:
-            data_object (Tensor): input vector.
+            img (Tensor): input image.
         Returns:
             output (dict): output dict containing logits.
         """
-        return {"logits": self.net(data_object)}
+        return {"logits": self.net(img.flatten(1))}
 
     def __str__(self):
         """

@@ -1,6 +1,7 @@
 torch==2.10.0
 torchvision==0.25.0
 torchmetrics
+datasets
 accelerate
 safetensors
 transformers==5.4.0

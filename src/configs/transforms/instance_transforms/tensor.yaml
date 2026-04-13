@@ -1,0 +1,10 @@
+train:
+  img: # name of the tensor on which we apply transform
+    _target_: torchvision.transforms.v2.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor
+inference:
+  img: # name of the tensor on which we apply transform
+    _target_: torchvision.transforms.v2.Compose
+    transforms:
+      - _target_: torchvision.transforms.ToTensor

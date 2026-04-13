@@ -1,0 +1,14 @@
+train:
+  _target_: src.datasets.HFDataset
+  dataset_name: "ylecun/mnist"
+  image_column: "image"
+  split: "train"
+  limit: 5
+  instance_transforms: ${transforms.instance_transforms.train}
+test:
+  _target_: src.datasets.HFDataset
+  dataset_name: "ylecun/mnist"
+  image_column: "image"
+  split: "train"
+  limit: 5
+  instance_transforms: ${transforms.instance_transforms.inference}

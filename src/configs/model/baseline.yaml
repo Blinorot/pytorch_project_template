@@ -1,6 +1,6 @@
 _target_: transformers.AutoConfig.for_model
 _args_:
   - baseline # model_type defined in the model config
-n_feats: 1024
+n_feats: 784
 fc_hidden: 512
 n_class: 10

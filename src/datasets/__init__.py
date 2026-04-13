@@ -1,1 +1,1 @@
-from src.datasets.example import ExampleDataset
+from src.datasets.hf_dataset import HFDataset

@@ -1,0 +1,12 @@
+train:
+  _target_: src.datasets.HFDataset
+  dataset_name: "uoft-cs/cifar10"
+  image_column: "img"
+  split: "train"
+  instance_transforms: ${transforms.instance_transforms.train}
+test:
+  _target_: src.datasets.HFDataset
+  dataset_name: "uoft-cs/cifar10"
+  image_column: "img"
+  split: "test"
+  instance_transforms: ${transforms.instance_transforms.inference}
