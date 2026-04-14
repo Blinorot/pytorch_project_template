@@ -182,7 +182,7 @@ class Inferencer(BaseTrainer):
                     part=part,
                 )
                 # gathering must be called on all processes to avoid deadlock
-                # metrics are none for other processes
+                # self.evaluation_metrics is none for other processes
                 if self.metrics["inference"] is not None:
                     gathered_batch = self._gather_batch_for_metrics(batch)
                     if self.accelerator.is_main_process:
