@@ -33,3 +33,4 @@ trainer:
   hf_push_to_hub: False
   hf_repo_id: null
   hf_repo_is_private: True
+  find_unused_parameters: False # DDP configuration

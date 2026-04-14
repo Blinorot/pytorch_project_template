@@ -209,8 +209,12 @@ accelerate launch \
 To run inference (evaluate the model or save predictions):
 
 ```bash
-accelerate launch --config-file ACCELERATE_CONFIG inference.py HYDRA_CONFIG_ARGUMENTS
+accelerate launch --config-file ACCELERATE_CONFIG inference.py \
+   inferencer.from_pretrained=PATH_TO_MODEL_WEIGHTS \
+   HYDRA_CONFIG_ARGUMENTS
 ```
+
+Where `PATH_TO_MODEL_WEIGHTS` is the path to the saved pretrained model, e.g., `saved/testing/checkpoint-best/model_weights`.
 
 ## Useful Links:
 

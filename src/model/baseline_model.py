@@ -1,8 +1,10 @@
+from huggingface_hub.dataclasses import strict
 from torch import nn
 from torch.nn import Sequential
 from transformers import PreTrainedConfig, PreTrainedModel
 
 
+@strict(accept_kwargs=True)
 class BaselineConfig(PreTrainedConfig):
     model_type = "baseline"
 
@@ -48,6 +50,11 @@ class BaselineModel(PreTrainedModel):
                 in_features=self.config.fc_hidden, out_features=self.config.n_class
             ),
         )
+
+        # must be called to fully initialize PreTrainedModel
+        # required for enabling .from_pretrained()
+        # see https://huggingface.co/docs/transformers/main/modeling_rules
+        self.post_init()
 
     def forward(self, data_object, **batch):
         """

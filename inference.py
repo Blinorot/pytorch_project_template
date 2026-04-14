@@ -3,11 +3,7 @@ from datetime import timedelta
 
 import hydra
 import torch
-from accelerate import (
-    Accelerator,
-    DistributedDataParallelKwargs,
-    InitProcessGroupKwargs,
-)
+from accelerate import Accelerator, InitProcessGroupKwargs
 from hydra.utils import instantiate
 from transformers import AutoModel
 
@@ -37,7 +33,6 @@ def main(config):
 
     kwargs = [
         InitProcessGroupKwargs(timeout=timedelta(seconds=3600)),
-        DistributedDataParallelKwargs(find_unused_parameters=True),
     ]
     accelerator = Accelerator(
         device_placement=False,  # we set to False for precise control of devices in batches

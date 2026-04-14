@@ -61,8 +61,8 @@ class Inferencer(BaseTrainer):
         self.save_path = save_path
 
         # define metrics
+        self.metrics = metrics
         if self.accelerator.is_main_process:
-            self.metrics = metrics
             if self.metrics["inference"] is not None:
                 self.evaluation_metrics = MetricTracker(
                     *[m.name for m in self.metrics["inference"]],
@@ -71,7 +71,6 @@ class Inferencer(BaseTrainer):
             else:
                 self.evaluation_metrics = None
         else:
-            self.metrics = None
             self.evaluation_metrics = None
 
     def run_inference(self):
@@ -182,8 +181,9 @@ class Inferencer(BaseTrainer):
                     batch=batch,
                     part=part,
                 )
-                if self.evaluation_metrics is not None:
-                    # gathering must be called on all processes to avoid deadlock
+                # gathering must be called on all processes to avoid deadlock
+                # self.evaluation_metrics is none for other processes
+                if self.metrics["inference"] is not None:
                     gathered_batch = self._gather_batch_for_metrics(batch)
                     if self.accelerator.is_main_process:
                         self._update_metrics(

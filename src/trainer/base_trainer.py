@@ -124,9 +124,8 @@ class BaseTrainer:
         self.writer = writer
 
         # define metrics
+        self.metrics = metrics
         if self.accelerator.is_main_process:
-            self.metrics = metrics
-
             self.train_metrics = MetricTracker(
                 *self.config.writer.loss_names,
                 "grad_norm",
@@ -139,7 +138,6 @@ class BaseTrainer:
                 writer=self.writer,
             )
         else:
-            self.metrics = None
             self.train_metrics = None
             self.evaluation_metrics = None
 
