@@ -294,7 +294,9 @@ class BaseTrainer:
                         )
                         self.logger.debug(
                             "Train Epoch: {} {} Loss: {:.6f}".format(
-                                epoch, self._progress(self.epoch_step), gathered_loss
+                                epoch,
+                                self._progress(self.epoch_step),
+                                gathered_loss["loss"],
                             )
                         )
                         self.writer.add_scalar(
@@ -385,12 +387,15 @@ class BaseTrainer:
 
         # update metrics for each loss (in case of multiple losses)
         if gather_loss:
+            gathered_loss = {}
             for loss_name in self.config.writer.loss_names:
-                gathered_loss = gathered_batch[loss_name]  # list
-                gathered_loss = (
-                    torch.tensor([elem.item() for elem in gathered_loss]).mean().item()
+                gathered_loss[loss_name] = gathered_batch[loss_name]  # list
+                gathered_loss[loss_name] = (
+                    torch.tensor([elem.item() for elem in gathered_loss[loss_name]])
+                    .mean()
+                    .item()
                 )
-                metrics.update(loss_name, gathered_loss)
+                metrics.update(loss_name, gathered_loss[loss_name])
         else:
             gathered_loss = None
 

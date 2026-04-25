@@ -72,7 +72,7 @@ def main(config):
     register_models()
     # build model architecture, then print to console
     if config.trainer.from_pretrained is None:
-        model_config = instantiate(config.model)
+        model_config = instantiate(config.model, _convert_="all")
         if accelerator.is_main_process:
             logger.info(model_config)
         model = AutoModel.from_config(model_config)
