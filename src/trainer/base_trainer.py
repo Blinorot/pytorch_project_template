@@ -1,3 +1,5 @@
+import os
+import shutil
 from abc import abstractmethod
 
 import torch
@@ -234,12 +236,15 @@ class BaseTrainer:
         self.model.train()
         if self.accelerator.is_main_process:
             self.train_metrics.reset()
-            self.writer.set_step((epoch - 1) * self.epoch_len)
+            # +1 to log at the border
+            self.writer.set_step(self.global_step + 1)
             self.writer.add_scalar("epoch", epoch)
             last_train_metrics = {}
 
         if self.accelerator.is_main_process:
             pbar = tqdm(total=self.epoch_len, desc="train")
+            # progress bar resume
+            pbar.update(self.epoch_step)
 
         for batch in self.train_dataloader:
             try:
@@ -289,9 +294,7 @@ class BaseTrainer:
                         )
                         self.train_metrics.update("grad_norm", grad_norm)
 
-                        self.writer.set_step(
-                            (epoch - 1) * self.epoch_len + self.epoch_step
-                        )
+                        self.writer.set_step(self.global_step)
                         self.logger.debug(
                             "Train Epoch: {} {} Loss: {:.6f}".format(
                                 epoch,
@@ -355,7 +358,8 @@ class BaseTrainer:
                 if self.accelerator.is_main_process:
                     self._update_metrics(gathered_batch, self.evaluation_metrics)
             if self.accelerator.is_main_process:
-                self.writer.set_step(epoch * self.epoch_len, part)
+                # + 1 to log on the border
+                self.writer.set_step(self.global_step + 1, part)
                 self._log_scalars(self.evaluation_metrics)
                 self._log_batch(
                     batch_idx, batch, part
@@ -657,6 +661,16 @@ class BaseTrainer:
             save_function=self.accelerator.save,
         )
 
+        # create symlink to the last checkpoint
+        link_name = self.checkpoint_dir / "checkpoint-last"
+        if link_name.exists() or link_name.is_symlink():
+            if link_name.is_dir() and not link_name.is_symlink():
+                self.logger.info("Deleting non-symlink last checkpoint ...")
+                shutil.rmtree(link_name)
+            else:
+                link_name.unlink()
+        os.symlink(dir_name, str(link_name), target_is_directory=True)
+
         if self.accelerator.is_main_process:
             if self.config.writer.log_checkpoints:
                 self.writer.add_checkpoint(
@@ -736,6 +750,9 @@ class BaseTrainer:
             # the saving was done at the end of epoch
             # we will start from the next one
             self.start_epoch += 1
+
+        if self.accelerator.is_main_process:
+            self.writer.set_step(self.global_step)
 
         self.mnt_best = trainer_state["monitor_best"]
 
